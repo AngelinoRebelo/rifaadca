@@ -101,6 +101,7 @@
         <nav class="nav">
             <button class="nav-btn active" onclick="showTab('criar', this)">Criar Rifa</button>
             <button class="nav-btn" onclick="showTab('andamento', this)">Em Andamento</button>
+            <button class="nav-btn" onclick="showTab('pagamento', this)">Pagamento da Cota</button>
             <button class="nav-btn" onclick="showTab('sortear', this)">Sortear</button>
             <button class="nav-btn" onclick="showTab('resultados', this)">Resultados</button>
         </nav>
@@ -161,6 +162,22 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- ABA PAGAMENTO -->
+    <div id="tab-pagamento" class="tab-content">
+        <h1 class="page-title">Pagamento da Cota</h1>
+        <p class="page-subtitle">Participantes que escolheram cotas e dados para pagamento</p>
+        <div class="card" style="margin-bottom:1.2rem">
+            <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
+                <div style="font-weight:700;color:var(--primary)">Forma de pagamento: PIX</div>
+                <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem">
+                    Chave PIX: <strong id="pix-chave">12389096719</strong>
+                </div>
+                <button type="button" class="btn btn-accent" style="padding:0.65rem 1rem" onclick="copiarChavePix()">Copiar chave</button>
+            </div>
+        </div>
+        <div id="pagamento-lista"></div>
     </div>
 
     <!-- ABA SORTEAR -->
@@ -305,6 +322,7 @@
         btn.classList.add('active');
 
         if (tabName === 'andamento') carregarRifasAndamento();
+        else if (tabName === 'pagamento') carregarPagamentos();
         else if (tabName === 'sortear') carregarRifasSortear();
         else if (tabName === 'resultados') carregarResultados();
     }
@@ -504,6 +522,16 @@
         modal.style.display = 'none';
     }
 
+    async function copiarChavePix() {
+        const chave = document.getElementById('pix-chave')?.textContent?.trim() || '12389096719';
+        try {
+            await navigator.clipboard.writeText(chave);
+            alert('✅ Chave PIX copiada: ' + chave);
+        } catch (err) {
+            alert('Copie manualmente a chave PIX: ' + chave);
+        }
+    }
+
     async function confirmarCota() {
         const modal = document.getElementById('modal-cota');
         const inputNome = document.getElementById('modal-cota-nome');
@@ -549,6 +577,55 @@
         } finally {
             btn.disabled = false;
             btn.textContent = 'Confirmar';
+        }
+    }
+
+    async function carregarPagamentos() {
+        const container = document.getElementById('pagamento-lista');
+        container.innerHTML = '<p style="text-align:center;color:var(--text-light)">Carregando...</p>';
+
+        try {
+            const { rows } = await executeTursoQuery(`
+                SELECT p.nome, p.numero_cota, r.nome, r.valor_cota
+                FROM participantes p
+                INNER JOIN rifas r ON r.id = p.rifa_id
+                ORDER BY r.nome ASC, p.numero_cota ASC
+            `);
+
+            if (!rows.length) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">💳</div>
+                        <h3>Nenhuma cota reservada</h3>
+                        <p>Quando alguém escolher uma cota, aparecerá aqui para pagamento.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = rows.map(([nomeParticipante, numeroCota, nomeRifa, valorCota]) => `
+                <div class="resultado-card">
+                    <div class="resultado-header">
+                        <div class="resultado-title">${escapeHtml(nomeParticipante)}</div>
+                        <div class="resultado-data">Cota #${numeroCota}</div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:0.75rem">
+                        <div>
+                            <div style="font-size:0.85rem;color:var(--text-light)">Rifa</div>
+                            <div style="font-weight:600">${escapeHtml(nomeRifa)}</div>
+                        </div>
+                        <div>
+                            <div style="font-size:0.85rem;color:var(--text-light)">Valor</div>
+                            <div style="font-weight:600">R$ ${parseFloat(valorCota).toFixed(2)}</div>
+                        </div>
+                        <div>
+                            <div style="font-size:0.85rem;color:var(--text-light)">Pagamento</div>
+                            <div style="font-weight:600;color:var(--primary)">PIX: 12389096719</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        } catch (err) {
+            container.innerHTML = `<p style="color:var(--error)">❌ Erro ao carregar pagamentos: ${err.message}</p>`;
         }
     }
 
