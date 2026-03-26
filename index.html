@@ -1,1 +1,967 @@
-adadad
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Rifas - Igreja</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2c5f2d;
+            --primary-light: #4a8a4c;
+            --primary-dark: #1a3a1b;
+            --accent: #d4af37;
+            --bg: #fafaf8;
+            --surface: #ffffff;
+            --text: #2d2d2d;
+            --text-light: #6b6b6b;
+            --border: #e5e5e0;
+            --success: #2c5f2d;
+            --error: #c44536;
+            --shadow: rgba(0, 0, 0, 0.08);
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 2rem 0;
+            box-shadow: 0 4px 20px var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.8rem;
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--accent);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .nav {
+            display: flex;
+            gap: 0.5rem;
+            margin-left: auto;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'DM Sans', sans-serif;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            font-size: 0.95rem;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .nav-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            font-weight: 900;
+        }
+
+        .page-subtitle {
+            color: var(--text-light);
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 2px 12px var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+            font-size: 0.95rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: var(--bg);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(44, 95, 45, 0.1);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'DM Sans', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(44, 95, 45, 0.2);
+        }
+
+        .btn:hover {
+            background: var(--primary-light);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(44, 95, 45, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-accent {
+            background: var(--accent);
+            color: var(--text);
+        }
+
+        .btn-accent:hover {
+            background: #c29d2e;
+        }
+
+        .rifas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .rifa-card {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 2px solid var(--border);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .rifa-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+        }
+
+        .rifa-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px var(--shadow);
+            border-color: var(--primary);
+        }
+
+        .rifa-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.75rem;
+        }
+
+        .rifa-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+
+        .rifa-info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .rifa-info-label {
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        .rifa-info-value {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .progress-bar {
+            background: var(--border);
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .sorteio-section {
+            text-align: center;
+            padding: 3rem 0;
+        }
+
+        .sorteador {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: 20px;
+            padding: 3rem;
+            margin: 2rem auto;
+            max-width: 600px;
+            box-shadow: 0 10px 40px var(--shadow);
+        }
+
+        .vencedor-display {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            min-height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            font-family: 'Playfair Display', serif;
+            animation: pulse 0.5s ease;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .resultado-card {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border-left: 4px solid var(--accent);
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 8px var(--shadow);
+        }
+
+        .resultado-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
+
+        .resultado-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .resultado-data {
+            background: var(--accent);
+            color: var(--text);
+            padding: 0.25rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .vencedor-info {
+            background: var(--bg);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .vencedor-nome {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-light);
+        }
+
+        .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        select.form-input {
+            cursor: pointer;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .nav {
+                margin-left: 0;
+                justify-content: center;
+            }
+
+            .page-title {
+                font-size: 2rem;
+            }
+
+            .rifas-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .sorteador {
+                padding: 2rem 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">🎯</div>
+                <span>Rifas da Igreja</span>
+            </div>
+            <nav class="nav">
+                <button class="nav-btn active" onclick="showTab('criar')">Criar Rifa</button>
+                <button class="nav-btn" onclick="showTab('andamento')">Em Andamento</button>
+                <button class="nav-btn" onclick="showTab('sortear')">Sortear</button>
+                <button class="nav-btn" onclick="showTab('resultados')">Resultados</button>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- ABA CRIAR RIFA -->
+        <div id="tab-criar" class="tab-content active">
+            <h1 class="page-title">Criar Nova Rifa</h1>
+            <p class="page-subtitle">Preencha os dados para iniciar uma nova campanha de rifa</p>
+
+            <div id="alert-container"></div>
+
+            <div class="card">
+                <form id="form-criar-rifa">
+                    <div class="form-group">
+                        <label class="form-label">Nome da Rifa</label>
+                        <input type="text" class="form-input" id="nome-rifa" required placeholder="Ex: Rifa do Bazar Beneficente">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Descrição</label>
+                        <input type="text" class="form-input" id="descricao-rifa" placeholder="Detalhes sobre o prêmio ou finalidade">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Número de Cotas</label>
+                        <input type="number" class="form-input" id="num-cotas" required min="10" placeholder="Ex: 100">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Valor por Cota (R$)</label>
+                        <input type="number" class="form-input" id="valor-cota" required min="1" step="0.01" placeholder="Ex: 10.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Data do Sorteio</label>
+                        <input type="date" class="form-input" id="data-sorteio" required>
+                    </div>
+
+                    <button type="submit" class="btn">Criar Rifa</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ABA RIFAS EM ANDAMENTO -->
+        <div id="tab-andamento" class="tab-content">
+            <h1 class="page-title">Rifas em Andamento</h1>
+            <p class="page-subtitle">Acompanhe as campanhas ativas no momento</p>
+
+            <div id="rifas-andamento" class="rifas-grid"></div>
+        </div>
+
+        <!-- ABA SORTEAR -->
+        <div id="tab-sortear" class="tab-content">
+            <h1 class="page-title">Sortear Rifa</h1>
+            <p class="page-subtitle">Realize o sorteio eletrônico de uma rifa ativa</p>
+
+            <div class="card">
+                <div class="form-group">
+                    <label class="form-label">Selecione a Rifa para Sortear</label>
+                    <select class="form-input" id="select-rifa-sortear">
+                        <option value="">Carregando rifas...</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-accent" onclick="realizarSorteio()" id="btn-sortear">Realizar Sorteio</button>
+            </div>
+
+            <div class="sorteio-section" id="sorteio-resultado" style="display: none;">
+                <div class="sorteador">
+                    <h2 style="color: white; margin-bottom: 1rem; font-family: 'Playfair Display', serif;">🎉 Vencedor!</h2>
+                    <div class="vencedor-display" id="vencedor-nome"></div>
+                    <p style="color: rgba(255,255,255,0.9); margin-top: 1rem;">Parabéns ao ganhador!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA RESULTADOS -->
+        <div id="tab-resultados" class="tab-content">
+            <h1 class="page-title">Resultados</h1>
+            <p class="page-subtitle">Histórico de todos os sorteios realizados</p>
+
+            <div id="resultados-lista"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configuração Turso
+        const TURSO_URL = 'libsql://database-cordovan-feather-vercel-icfg-ni4jeabacdgrdfgmcjlnprsu.aws-us-east-1.turso.io';
+        const TURSO_TOKEN = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NzQ1MzQ0NjEsImlkIjoiMDE5ZDJhN2YtMDYwMS03Mzg2LTkzYjgtN2Y2NzI3NTgwNWM4IiwicmlkIjoiZDYyYTI2M2YtMjQzZi00ODU5LWIwMjQtMWUzZWRkZmY3ZjlkIn0.R7V76HhsQFC1vAdFH8Cyc6VOMK4gLvU_6Vy-xt-J6lRZFUo26fH2_QX5H6xOFP3IMSOIqCxpzUxMED0CX4l5Ag';
+
+        // Função para executar queries no Turso
+        async function executeTursoQuery(sql, params = []) {
+            try {
+                const response = await fetch(`${TURSO_URL}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${TURSO_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        statements: [{
+                            q: sql,
+                            params: params
+                        }]
+                    })
+                });
+
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Erro ao executar query:', error);
+                throw error;
+            }
+        }
+
+        // Inicializar banco de dados
+        async function initDatabase() {
+            try {
+                // Criar tabela de rifas
+                await executeTursoQuery(`
+                    CREATE TABLE IF NOT EXISTS rifas (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        nome TEXT NOT NULL,
+                        descricao TEXT,
+                        num_cotas INTEGER NOT NULL,
+                        valor_cota REAL NOT NULL,
+                        data_sorteio TEXT NOT NULL,
+                        status TEXT DEFAULT 'ativa',
+                        data_criacao TEXT DEFAULT CURRENT_TIMESTAMP
+                    )
+                `);
+
+                // Criar tabela de participantes
+                await executeTursoQuery(`
+                    CREATE TABLE IF NOT EXISTS participantes (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        rifa_id INTEGER NOT NULL,
+                        nome TEXT NOT NULL,
+                        numero_cota INTEGER NOT NULL,
+                        FOREIGN KEY (rifa_id) REFERENCES rifas(id)
+                    )
+                `);
+
+                // Criar tabela de resultados
+                await executeTursoQuery(`
+                    CREATE TABLE IF NOT EXISTS resultados (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        rifa_id INTEGER NOT NULL,
+                        vencedor_nome TEXT NOT NULL,
+                        numero_sorteado INTEGER NOT NULL,
+                        data_sorteio TEXT DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (rifa_id) REFERENCES rifas(id)
+                    )
+                `);
+
+                console.log('Banco de dados inicializado!');
+            } catch (error) {
+                console.error('Erro ao inicializar banco:', error);
+            }
+        }
+
+        // Navegação entre abas
+        function showTab(tabName) {
+            // Remover active de todos
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+
+            // Ativar tab selecionada
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            event.target.classList.add('active');
+
+            // Carregar dados conforme a aba
+            if (tabName === 'andamento') {
+                carregarRifasAndamento();
+            } else if (tabName === 'sortear') {
+                carregarRifasSortear();
+            } else if (tabName === 'resultados') {
+                carregarResultados();
+            }
+        }
+
+        // Mostrar alerta
+        function showAlert(message, type = 'success') {
+            const container = document.getElementById('alert-container');
+            container.innerHTML = `
+                <div class="alert alert-${type}">
+                    ${message}
+                </div>
+            `;
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+
+        // Criar nova rifa
+        document.getElementById('form-criar-rifa').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const nome = document.getElementById('nome-rifa').value;
+            const descricao = document.getElementById('descricao-rifa').value;
+            const numCotas = document.getElementById('num-cotas').value;
+            const valorCota = document.getElementById('valor-cota').value;
+            const dataSorteio = document.getElementById('data-sorteio').value;
+
+            try {
+                await executeTursoQuery(
+                    `INSERT INTO rifas (nome, descricao, num_cotas, valor_cota, data_sorteio) 
+                     VALUES (?, ?, ?, ?, ?)`,
+                    [nome, descricao, parseInt(numCotas), parseFloat(valorCota), dataSorteio]
+                );
+
+                showAlert('Rifa criada com sucesso!', 'success');
+                e.target.reset();
+
+                // Gerar participantes fictícios para demonstração
+                const result = await executeTursoQuery('SELECT last_insert_rowid() as id');
+                const rifaId = result[0]?.results?.rows[0]?.[0];
+                
+                if (rifaId) {
+                    await gerarParticipantesFicticios(rifaId, parseInt(numCotas));
+                }
+
+            } catch (error) {
+                showAlert('Erro ao criar rifa. Tente novamente.', 'error');
+                console.error(error);
+            }
+        });
+
+        // Gerar participantes fictícios
+        async function gerarParticipantesFicticios(rifaId, numCotas) {
+            const nomes = [
+                'Maria Silva', 'João Santos', 'Ana Oliveira', 'Pedro Costa', 'Carla Souza',
+                'Lucas Pereira', 'Juliana Lima', 'Fernando Alves', 'Patricia Rocha', 'Roberto Dias',
+                'Fernanda Castro', 'Marcos Ribeiro', 'Lucia Martins', 'Carlos Ferreira', 'Beatriz Gomes',
+                'Rafael Barbosa', 'Claudia Mendes', 'Antonio Cardoso', 'Mariana Araujo', 'Paulo Ramos'
+            ];
+
+            // Inserir 30-80% das cotas com participantes
+            const numParticipantes = Math.floor(numCotas * (0.3 + Math.random() * 0.5));
+
+            for (let i = 1; i <= numParticipantes; i++) {
+                const nomeAleatorio = nomes[Math.floor(Math.random() * nomes.length)];
+                await executeTursoQuery(
+                    'INSERT INTO participantes (rifa_id, nome, numero_cota) VALUES (?, ?, ?)',
+                    [rifaId, nomeAleatorio, i]
+                );
+            }
+        }
+
+        // Carregar rifas em andamento
+        async function carregarRifasAndamento() {
+            const container = document.getElementById('rifas-andamento');
+            container.innerHTML = '<p style="text-align: center; color: var(--text-light);">Carregando...</p>';
+
+            try {
+                const result = await executeTursoQuery(
+                    "SELECT * FROM rifas WHERE status = 'ativa' ORDER BY data_criacao DESC"
+                );
+
+                const rifas = result[0]?.results?.rows || [];
+
+                if (rifas.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon">🎯</div>
+                            <h3>Nenhuma rifa ativa</h3>
+                            <p>Crie uma nova rifa para começar!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                for (const rifa of rifas) {
+                    const [id, nome, descricao, numCotas, valorCota, dataSorteio] = rifa;
+
+                    // Contar participantes
+                    const countResult = await executeTursoQuery(
+                        'SELECT COUNT(*) as total FROM participantes WHERE rifa_id = ?',
+                        [id]
+                    );
+                    const participantes = countResult[0]?.results?.rows[0]?.[0] || 0;
+                    const percentual = Math.round((participantes / numCotas) * 100);
+
+                    html += `
+                        <div class="rifa-card">
+                            <h3 class="rifa-title">${nome}</h3>
+                            ${descricao ? `<p style="color: var(--text-light); margin-bottom: 1rem;">${descricao}</p>` : ''}
+                            
+                            <div class="rifa-info">
+                                <div class="rifa-info-item">
+                                    <span class="rifa-info-label">Total de Cotas</span>
+                                    <span class="rifa-info-value">${numCotas}</span>
+                                </div>
+                                <div class="rifa-info-item">
+                                    <span class="rifa-info-label">Valor por Cota</span>
+                                    <span class="rifa-info-value">R$ ${parseFloat(valorCota).toFixed(2)}</span>
+                                </div>
+                                <div class="rifa-info-item">
+                                    <span class="rifa-info-label">Data do Sorteio</span>
+                                    <span class="rifa-info-value">${new Date(dataSorteio).toLocaleDateString('pt-BR')}</span>
+                                </div>
+                                <div class="rifa-info-item">
+                                    <span class="rifa-info-label">Cotas Vendidas</span>
+                                    <span class="rifa-info-value">${participantes} / ${numCotas}</span>
+                                </div>
+                            </div>
+
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${percentual}%"></div>
+                            </div>
+                            <p style="text-align: center; color: var(--text-light); font-size: 0.9rem; margin-top: 0.5rem;">
+                                ${percentual}% vendido
+                            </p>
+                        </div>
+                    `;
+                }
+
+                container.innerHTML = html;
+
+            } catch (error) {
+                container.innerHTML = '<p style="color: var(--error);">Erro ao carregar rifas</p>';
+                console.error(error);
+            }
+        }
+
+        // Carregar rifas para sortear
+        async function carregarRifasSortear() {
+            const select = document.getElementById('select-rifa-sortear');
+
+            try {
+                const result = await executeTursoQuery(
+                    "SELECT * FROM rifas WHERE status = 'ativa' ORDER BY data_sorteio ASC"
+                );
+
+                const rifas = result[0]?.results?.rows || [];
+
+                if (rifas.length === 0) {
+                    select.innerHTML = '<option value="">Nenhuma rifa disponível</option>';
+                    return;
+                }
+
+                select.innerHTML = '<option value="">Selecione uma rifa...</option>';
+                rifas.forEach(rifa => {
+                    const [id, nome] = rifa;
+                    select.innerHTML += `<option value="${id}">${nome}</option>`;
+                });
+
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        // Realizar sorteio
+        async function realizarSorteio() {
+            const rifaId = document.getElementById('select-rifa-sortear').value;
+            
+            if (!rifaId) {
+                alert('Selecione uma rifa primeiro!');
+                return;
+            }
+
+            const btnSortear = document.getElementById('btn-sortear');
+            btnSortear.disabled = true;
+            btnSortear.innerHTML = '<span class="loading"></span> Sorteando...';
+
+            try {
+                // Buscar participantes
+                const result = await executeTursoQuery(
+                    'SELECT * FROM participantes WHERE rifa_id = ?',
+                    [rifaId]
+                );
+
+                const participantes = result[0]?.results?.rows || [];
+
+                if (participantes.length === 0) {
+                    alert('Esta rifa não possui participantes!');
+                    btnSortear.disabled = false;
+                    btnSortear.innerHTML = 'Realizar Sorteio';
+                    return;
+                }
+
+                // Sortear aleatoriamente
+                const vencedor = participantes[Math.floor(Math.random() * participantes.length)];
+                const [id, rifaIdVencedor, nomeVencedor, numeroCota] = vencedor;
+
+                // Salvar resultado
+                await executeTursoQuery(
+                    'INSERT INTO resultados (rifa_id, vencedor_nome, numero_sorteado) VALUES (?, ?, ?)',
+                    [rifaId, nomeVencedor, numeroCota]
+                );
+
+                // Atualizar status da rifa
+                await executeTursoQuery(
+                    "UPDATE rifas SET status = 'sorteada' WHERE id = ?",
+                    [rifaId]
+                );
+
+                // Mostrar resultado
+                document.getElementById('sorteio-resultado').style.display = 'block';
+                document.getElementById('vencedor-nome').textContent = nomeVencedor;
+                document.getElementById('vencedor-nome').style.animation = 'none';
+                setTimeout(() => {
+                    document.getElementById('vencedor-nome').style.animation = 'pulse 0.5s ease';
+                }, 10);
+
+                // Recarregar select
+                setTimeout(() => {
+                    carregarRifasSortear();
+                }, 2000);
+
+            } catch (error) {
+                alert('Erro ao realizar sorteio!');
+                console.error(error);
+            }
+
+            btnSortear.disabled = false;
+            btnSortear.innerHTML = 'Realizar Sorteio';
+        }
+
+        // Carregar resultados
+        async function carregarResultados() {
+            const container = document.getElementById('resultados-lista');
+            container.innerHTML = '<p style="text-align: center; color: var(--text-light);">Carregando...</p>';
+
+            try {
+                const result = await executeTursoQuery(`
+                    SELECT r.*, res.vencedor_nome, res.numero_sorteado, res.data_sorteio as data_resultado
+                    FROM rifas r
+                    INNER JOIN resultados res ON r.id = res.rifa_id
+                    ORDER BY res.data_sorteio DESC
+                `);
+
+                const resultados = result[0]?.results?.rows || [];
+
+                if (resultados.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon">🏆</div>
+                            <h3>Nenhum sorteio realizado</h3>
+                            <p>Os resultados dos sorteios aparecerão aqui</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                resultados.forEach(resultado => {
+                    const [id, nome, descricao, numCotas, valorCota, dataSorteio, status, dataCriacao, vencedorNome, numeroSorteado, dataResultado] = resultado;
+
+                    html += `
+                        <div class="resultado-card">
+                            <div class="resultado-header">
+                                <div class="resultado-title">${nome}</div>
+                                <div class="resultado-data">${new Date(dataResultado).toLocaleDateString('pt-BR')}</div>
+                            </div>
+                            
+                            ${descricao ? `<p style="color: var(--text-light); margin-bottom: 1rem;">${descricao}</p>` : ''}
+                            
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                                <div>
+                                    <div style="font-size: 0.85rem; color: var(--text-light);">Total de Cotas</div>
+                                    <div style="font-weight: 600;">${numCotas}</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.85rem; color: var(--text-light);">Valor por Cota</div>
+                                    <div style="font-weight: 600;">R$ ${parseFloat(valorCota).toFixed(2)}</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.85rem; color: var(--text-light);">Número Sorteado</div>
+                                    <div style="font-weight: 600; color: var(--accent);">#${numeroSorteado}</div>
+                                </div>
+                            </div>
+
+                            <div class="vencedor-info">
+                                <div style="font-size: 0.85rem; color: var(--text-light); margin-bottom: 0.25rem;">🏆 Vencedor</div>
+                                <div class="vencedor-nome">${vencedorNome}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+
+            } catch (error) {
+                container.innerHTML = '<p style="color: var(--error);">Erro ao carregar resultados</p>';
+                console.error(error);
+            }
+        }
+
+        // Inicializar ao carregar a página
+        window.addEventListener('DOMContentLoaded', async () => {
+            await initDatabase();
+            
+            // Definir data mínima como hoje
+            const hoje = new Date().toISOString().split('T')[0];
+            document.getElementById('data-sorteio').min = hoje;
+        });
+    </script>
+</body>
+</html>
