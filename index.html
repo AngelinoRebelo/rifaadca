@@ -51,7 +51,9 @@
         .sorteio-section { text-align: center; padding: 3rem 0; }
         .sorteador { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); border-radius: 20px; padding: 3rem; margin: 2rem auto; max-width: 600px; box-shadow: 0 10px 40px var(--shadow); }
         .vencedor-display { background: white; border-radius: 16px; padding: 2rem; margin: 2rem 0; min-height: 150px; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; color: var(--primary); font-family: 'Playfair Display', serif; }
+        .vencedor-display.sorteando { animation: sorteioShuffle 0.12s linear infinite; color: var(--primary-light); }
         @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        @keyframes sorteioShuffle { 0% { transform: translateY(0); opacity: 0.85; } 50% { transform: translateY(-2px); opacity: 1; } 100% { transform: translateY(0); opacity: 0.85; } }
         .resultado-card { background: var(--surface); border-radius: 12px; padding: 1.5rem; border-left: 4px solid var(--accent); margin-bottom: 1rem; box-shadow: 0 2px 8px var(--shadow); }
         .resultado-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem; }
         .resultado-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: var(--primary); }
@@ -202,7 +204,7 @@
             throw new Error(`HTTP ${response.status}: ${txt}`);
         }
 
-        const data = await response.json();
+        const data = await response.json(); 
 
         // Verificar erro retornado pela API
         if (data.results?.[0]?.type === 'error') {
@@ -309,11 +311,8 @@
                 [nome, descricao || null, numCotas, valorCota, dataSorteio]
             );
 
-            const rifaId = parseInt(res.lastInsertRowid);
             showAlert('✅ Rifa criada com sucesso!', 'success');
             e.target.reset();
-
-            if (rifaId) await gerarParticipantesFicticios(rifaId, numCotas);
 
         } catch (err) {
             showAlert('❌ Erro ao criar rifa: ' + err.message, 'error');
@@ -323,24 +322,6 @@
         btn.disabled = false;
         btn.textContent = 'Criar Rifa';
     });
-
-    // Participantes fictícios
-    async function gerarParticipantesFicticios(rifaId, numCotas) {
-        const nomes = [
-            'Maria Silva','João Santos','Ana Oliveira','Pedro Costa','Carla Souza',
-            'Lucas Pereira','Juliana Lima','Fernando Alves','Patricia Rocha','Roberto Dias',
-            'Fernanda Castro','Marcos Ribeiro','Lucia Martins','Carlos Ferreira','Beatriz Gomes',
-            'Rafael Barbosa','Claudia Mendes','Antonio Cardoso','Mariana Araujo','Paulo Ramos'
-        ];
-        const total = Math.floor(numCotas * (0.3 + Math.random() * 0.5));
-        for (let i = 1; i <= total; i++) {
-            const nome = nomes[Math.floor(Math.random() * nomes.length)];
-            await executeTursoQuery(
-                'INSERT INTO participantes (rifa_id, nome, numero_cota) VALUES (?, ?, ?)',
-                [rifaId, nome, i]
-            );
-        }
-    }
 
     // Rifas em andamento
     async function carregarRifasAndamento() {
@@ -523,8 +504,11 @@
         if (!rifaId) { alert('Selecione uma rifa primeiro!'); return; }
 
         const btn = document.getElementById('btn-sortear');
+        const display = document.getElementById('vencedor-nome');
+        const resultadoBox = document.getElementById('sorteio-resultado');
         btn.disabled = true;
         btn.innerHTML = '<span class="loading"></span> Sorteando...';
+        resultadoBox.style.display = 'block';
 
         try {
             const { rows } = await executeTursoQuery(
@@ -538,6 +522,18 @@
                 return;
             }
 
+            // Animação: mostra vários participantes reais antes do resultado final.
+            display.classList.add('sorteando');
+            const animacaoMs = 2400;
+            const trocaMs = 120;
+            const ciclos = Math.floor(animacaoMs / trocaMs);
+            for (let i = 0; i < ciclos; i++) {
+                const candidato = rows[Math.floor(Math.random() * rows.length)];
+                const [, nomeCandidato, numeroCandidato] = candidato;
+                display.textContent = `🎟️ ${nomeCandidato} — Cota #${numeroCandidato}`;
+                await new Promise(resolve => setTimeout(resolve, trocaMs));
+            }
+
             const vencedor = rows[Math.floor(Math.random() * rows.length)];
             const [, nomeVencedor, numeroCota] = vencedor;
 
@@ -549,15 +545,15 @@
                 "UPDATE rifas SET status = 'sorteada' WHERE id = ?", [rifaId]
             );
 
-            const display = document.getElementById('vencedor-nome');
+            display.classList.remove('sorteando');
             display.textContent = `🏆 ${nomeVencedor} — Cota #${numeroCota}`;
             display.style.animation = 'none';
-            document.getElementById('sorteio-resultado').style.display = 'block';
             setTimeout(() => { display.style.animation = 'pulse 0.5s ease'; }, 10);
 
             setTimeout(carregarRifasSortear, 2000);
 
         } catch (err) {
+            display.classList.remove('sorteando');
             alert('Erro ao sortear: ' + err.message);
             console.error(err);
         }
