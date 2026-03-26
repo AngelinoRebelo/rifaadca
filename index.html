@@ -33,7 +33,7 @@
         .form-input { width: 100%; padding: 0.875rem 1rem; border: 2px solid var(--border); border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 1rem; transition: all 0.3s ease; background: var(--bg); }
         .form-input:focus { outline: none; border-color: var(--primary); background: white; box-shadow: 0 0 0 4px rgba(44,95,45,0.1); }
         .btn { background: var(--primary); color: white; padding: 1rem 2rem; border: none; border-radius: 10px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 1rem; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(44,95,45,0.2); }
-        .btn:hover { background: var(--primary-light); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(44,95,45,0.3); }
+        .btn:hover { background: var(--primary-light); transform: translateY(-2px); }
         .btn:active { transform: translateY(0); }
         .btn-accent { background: var(--accent); color: var(--text); }
         .btn-accent:hover { background: #c29d2e; }
@@ -57,11 +57,11 @@
         .resultado-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: var(--primary); }
         .resultado-data { background: var(--accent); color: var(--text); padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; }
         .vencedor-info { background: var(--bg); padding: 1rem; border-radius: 8px; margin-top: 1rem; }
-        .vencedor-nome { font-size: 1.2rem; font-weight: 700; color: var(--primary); margin-bottom: 0.25rem; }
+        .vencedor-nome { font-size: 1.2rem; font-weight: 700; color: var(--primary); }
         .empty-state { text-align: center; padding: 4rem 2rem; color: var(--text-light); }
         .empty-icon { font-size: 4rem; margin-bottom: 1rem; opacity: 0.3; }
         select.form-input { cursor: pointer; }
-        .loading { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: white; animation: spin 1s ease-in-out infinite; }
+        .loading { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: white; animation: spin 1s ease-in-out infinite; vertical-align: middle; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .alert { padding: 1rem 1.5rem; border-radius: 10px; margin-bottom: 1.5rem; font-weight: 500; }
         .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
@@ -76,448 +76,458 @@
     </style>
 </head>
 <body>
-    <header class="header">
-        <div class="header-content">
-            <div class="logo">
-                <div class="logo-icon">🎯</div>
-                <span>Rifas da Igreja</span>
-            </div>
-            <nav class="nav">
-                <button class="nav-btn active" onclick="showTab('criar', this)">Criar Rifa</button>
-                <button class="nav-btn" onclick="showTab('andamento', this)">Em Andamento</button>
-                <button class="nav-btn" onclick="showTab('sortear', this)">Sortear</button>
-                <button class="nav-btn" onclick="showTab('resultados', this)">Resultados</button>
-            </nav>
-        </div>
-    </header>
 
-    <div class="container">
-        <div id="tab-criar" class="tab-content active">
-            <h1 class="page-title">Criar Nova Rifa</h1>
-            <p class="page-subtitle">Preencha os dados para iniciar uma nova campanha de rifa</p>
-            <div id="alert-container"></div>
-            <div class="card">
-                <form id="form-criar-rifa">
-                    <div class="form-group">
-                        <label class="form-label">Nome da Rifa</label>
-                        <input type="text" class="form-input" id="nome-rifa" required placeholder="Ex: Rifa do Bazar Beneficente">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Descrição</label>
-                        <input type="text" class="form-input" id="descricao-rifa" placeholder="Detalhes sobre o prêmio ou finalidade">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Número de Cotas</label>
-                        <input type="number" class="form-input" id="num-cotas" required min="10" placeholder="Ex: 100">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Valor por Cota (R$)</label>
-                        <input type="number" class="form-input" id="valor-cota" required min="1" step="0.01" placeholder="Ex: 10.00">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Data do Sorteio</label>
-                        <input type="date" class="form-input" id="data-sorteio" required>
-                    </div>
-                    <button type="submit" class="btn">Criar Rifa</button>
-                </form>
-            </div>
+<header class="header">
+    <div class="header-content">
+        <div class="logo">
+            <div class="logo-icon">🎯</div>
+            <span>Rifas da Igreja</span>
         </div>
+        <nav class="nav">
+            <button class="nav-btn active" onclick="showTab('criar', this)">Criar Rifa</button>
+            <button class="nav-btn" onclick="showTab('andamento', this)">Em Andamento</button>
+            <button class="nav-btn" onclick="showTab('sortear', this)">Sortear</button>
+            <button class="nav-btn" onclick="showTab('resultados', this)">Resultados</button>
+        </nav>
+    </div>
+</header>
 
-        <div id="tab-andamento" class="tab-content">
-            <h1 class="page-title">Rifas em Andamento</h1>
-            <p class="page-subtitle">Acompanhe as campanhas ativas no momento</p>
-            <div id="rifas-andamento" class="rifas-grid"></div>
-        </div>
+<div class="container">
 
-        <div id="tab-sortear" class="tab-content">
-            <h1 class="page-title">Sortear Rifa</h1>
-            <p class="page-subtitle">Realize o sorteio eletrônico de uma rifa ativa</p>
-            <div class="card">
+    <!-- ABA CRIAR -->
+    <div id="tab-criar" class="tab-content active">
+        <h1 class="page-title">Criar Nova Rifa</h1>
+        <p class="page-subtitle">Preencha os dados para iniciar uma nova campanha de rifa</p>
+        <div id="alert-container"></div>
+        <div class="card">
+            <form id="form-criar-rifa">
                 <div class="form-group">
-                    <label class="form-label">Selecione a Rifa para Sortear</label>
-                    <select class="form-input" id="select-rifa-sortear">
-                        <option value="">Carregando rifas...</option>
-                    </select>
+                    <label class="form-label">Nome da Rifa</label>
+                    <input type="text" class="form-input" id="nome-rifa" required placeholder="Ex: Rifa do Bazar Beneficente">
                 </div>
-                <button class="btn btn-accent" onclick="realizarSorteio()" id="btn-sortear">Realizar Sorteio</button>
-            </div>
-            <div class="sorteio-section" id="sorteio-resultado" style="display: none;">
-                <div class="sorteador">
-                    <h2 style="color: white; margin-bottom: 1rem; font-family: 'Playfair Display', serif;">🎉 Vencedor!</h2>
-                    <div class="vencedor-display" id="vencedor-nome"></div>
-                    <p style="color: rgba(255,255,255,0.9); margin-top: 1rem;">Parabéns ao ganhador!</p>
+                <div class="form-group">
+                    <label class="form-label">Descrição</label>
+                    <input type="text" class="form-input" id="descricao-rifa" placeholder="Detalhes sobre o prêmio ou finalidade">
                 </div>
-            </div>
-        </div>
-
-        <div id="tab-resultados" class="tab-content">
-            <h1 class="page-title">Resultados</h1>
-            <p class="page-subtitle">Histórico de todos os sorteios realizados</p>
-            <div id="resultados-lista"></div>
+                <div class="form-group">
+                    <label class="form-label">Número de Cotas</label>
+                    <input type="number" class="form-input" id="num-cotas" required min="10" placeholder="Ex: 100">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Valor por Cota (R$)</label>
+                    <input type="number" class="form-input" id="valor-cota" required min="1" step="0.01" placeholder="Ex: 10.00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Data do Sorteio</label>
+                    <input type="date" class="form-input" id="data-sorteio" required>
+                </div>
+                <button type="submit" class="btn">Criar Rifa</button>
+            </form>
         </div>
     </div>
 
-    <script>
-        // ✅ CORREÇÃO 1: URL correta da API REST do Turso
-        const TURSO_URL = 'https://database-cordovan-feather-vercel-icfg-ni4jeabacdgrdfgmcjlnprsu.aws-us-east-1.turso.io/v2/pipeline';
-        const TURSO_TOKEN = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NzQ1MzQ0NjEsImlkIjoiMDE5ZDJhN2YtMDYwMS03Mzg2LTkzYjgtN2Y2NzI3NTgwNWM4IiwicmlkIjoiZDYyYTI2M2YtMjQzZi00ODU5LWIwMjQtMWUzZWRkZmY3ZjlkIn0.R7V76HhsQFC1vAdFH8Cyc6VOMK4gLvU_6Vy-xt-J6lRZFUo26fH2_QX5H6xOFP3IMSOIqCxpzUxMED0CX4l5Ag';
+    <!-- ABA ANDAMENTO -->
+    <div id="tab-andamento" class="tab-content">
+        <h1 class="page-title">Rifas em Andamento</h1>
+        <p class="page-subtitle">Acompanhe as campanhas ativas no momento</p>
+        <div id="rifas-andamento" class="rifas-grid"></div>
+    </div>
 
-        // ✅ CORREÇÃO 2: Função executeTursoQuery corrigida com endpoint e parser corretos
-        async function executeTursoQuery(sql, params = []) {
-            const response = await fetch(TURSO_URL, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${TURSO_TOKEN}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    requests: [
-                        {
-                            type: 'execute',
-                            stmt: {
-                                sql: sql,
-                                args: params.map(p => {
-                                    if (p === null) return { type: 'null' };
-                                    if (typeof p === 'number') return { type: 'integer', value: String(p) };
-                                    return { type: 'text', value: String(p) };
-                                })
-                            }
-                        },
-                        { type: 'close' }
-                    ]
-                })
-            });
+    <!-- ABA SORTEAR -->
+    <div id="tab-sortear" class="tab-content">
+        <h1 class="page-title">Sortear Rifa</h1>
+        <p class="page-subtitle">Realize o sorteio eletrônico de uma rifa ativa</p>
+        <div class="card">
+            <div class="form-group">
+                <label class="form-label">Selecione a Rifa para Sortear</label>
+                <select class="form-input" id="select-rifa-sortear">
+                    <option value="">Carregando rifas...</option>
+                </select>
+            </div>
+            <button class="btn btn-accent" onclick="realizarSorteio()" id="btn-sortear">Realizar Sorteio</button>
+        </div>
+        <div class="sorteio-section" id="sorteio-resultado" style="display:none">
+            <div class="sorteador">
+                <h2 style="color:white;margin-bottom:1rem;font-family:'Playfair Display',serif">🎉 Vencedor!</h2>
+                <div class="vencedor-display" id="vencedor-nome"></div>
+                <p style="color:rgba(255,255,255,0.9);margin-top:1rem">Parabéns ao ganhador!</p>
+            </div>
+        </div>
+    </div>
 
-            if (!response.ok) {
-                const errText = await response.text();
-                throw new Error(`Turso HTTP ${response.status}: ${errText}`);
-            }
+    <!-- ABA RESULTADOS -->
+    <div id="tab-resultados" class="tab-content">
+        <h1 class="page-title">Resultados</h1>
+        <p class="page-subtitle">Histórico de todos os sorteios realizados</p>
+        <div id="resultados-lista"></div>
+    </div>
 
-            const data = await response.json();
+</div>
 
-            // ✅ CORREÇÃO 3: Parser correto da resposta do Turso v2
-            if (data.results && data.results[0]?.type === 'error') {
-                throw new Error(data.results[0].error.message);
-            }
+<script>
+    // ✅ URL CORRIGIDA — usa HTTPS + /v2/pipeline (libsql:// não funciona no browser)
+    const TURSO_URL = 'https://database-cordovan-feather-vercel-icfg-ni4jeabacdgrdfgmcjlnprsu.aws-us-east-1.turso.io/v2/pipeline';
+    const TURSO_TOKEN = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NzQ1MzQ0NjEsImlkIjoiMDE5ZDJhN2YtMDYwMS03Mzg2LTkzYjgtN2Y2NzI3NTgwNWM4IiwicmlkIjoiZDYyYTI2M2YtMjQzZi00ODU5LWIwMjQtMWUzZWRkZmY3ZjlkIn0.R7V76HhsQFC1vAdFH8Cyc6VOMK4gLvU_6Vy-xt-J6lRZFUo26fH2_QX5H6xOFP3IMSOIqCxpzUxMED0CX4l5Ag';
 
-            const result = data.results?.[0]?.response?.result;
-            const cols = result?.cols?.map(c => c.name) || [];
-            const rows = result?.rows?.map(row =>
-                row.map(cell => {
-                    if (cell.type === 'null') return null;
-                    if (cell.type === 'integer') return parseInt(cell.value);
-                    if (cell.type === 'float') return parseFloat(cell.value);
-                    return cell.value;
-                })
-            ) || [];
-
-            return { cols, rows, lastInsertRowid: result?.last_insert_rowid };
-        }
-
-        // Inicializar banco de dados
-        async function initDatabase() {
-            try {
-                await executeTursoQuery(`
-                    CREATE TABLE IF NOT EXISTS rifas (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        nome TEXT NOT NULL,
-                        descricao TEXT,
-                        num_cotas INTEGER NOT NULL,
-                        valor_cota REAL NOT NULL,
-                        data_sorteio TEXT NOT NULL,
-                        status TEXT DEFAULT 'ativa',
-                        data_criacao TEXT DEFAULT CURRENT_TIMESTAMP
-                    )
-                `);
-                await executeTursoQuery(`
-                    CREATE TABLE IF NOT EXISTS participantes (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        rifa_id INTEGER NOT NULL,
-                        nome TEXT NOT NULL,
-                        numero_cota INTEGER NOT NULL,
-                        FOREIGN KEY (rifa_id) REFERENCES rifas(id)
-                    )
-                `);
-                await executeTursoQuery(`
-                    CREATE TABLE IF NOT EXISTS resultados (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        rifa_id INTEGER NOT NULL,
-                        vencedor_nome TEXT NOT NULL,
-                        numero_sorteado INTEGER NOT NULL,
-                        data_sorteio TEXT DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY (rifa_id) REFERENCES rifas(id)
-                    )
-                `);
-                console.log('✅ Banco inicializado!');
-            } catch (error) {
-                console.error('Erro ao inicializar banco:', error);
-            }
-        }
-
-        // ✅ CORREÇÃO 4: showTab recebe o botão como parâmetro (sem depender de `event`)
-        function showTab(tabName, btn) {
-            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(`tab-${tabName}`).classList.add('active');
-            btn.classList.add('active');
-
-            if (tabName === 'andamento') carregarRifasAndamento();
-            else if (tabName === 'sortear') carregarRifasSortear();
-            else if (tabName === 'resultados') carregarResultados();
-        }
-
-        function showAlert(message, type = 'success') {
-            const container = document.getElementById('alert-container');
-            container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
-            setTimeout(() => { container.innerHTML = ''; }, 5000);
-        }
-
-        // Criar nova rifa
-        document.getElementById('form-criar-rifa').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const nome = document.getElementById('nome-rifa').value;
-            const descricao = document.getElementById('descricao-rifa').value;
-            const numCotas = parseInt(document.getElementById('num-cotas').value);
-            const valorCota = parseFloat(document.getElementById('valor-cota').value);
-            const dataSorteio = document.getElementById('data-sorteio').value;
-
-            try {
-                // ✅ CORREÇÃO 5: Pegar lastInsertRowid da resposta corrigida
-                const result = await executeTursoQuery(
-                    `INSERT INTO rifas (nome, descricao, num_cotas, valor_cota, data_sorteio) VALUES (?, ?, ?, ?, ?)`,
-                    [nome, descricao, numCotas, valorCota, dataSorteio]
-                );
-
-                const rifaId = result.lastInsertRowid;
-
-                showAlert('Rifa criada com sucesso!', 'success');
-                e.target.reset();
-
-                if (rifaId) {
-                    await gerarParticipantesFicticios(parseInt(rifaId), numCotas);
-                }
-            } catch (error) {
-                showAlert('Erro ao criar rifa: ' + error.message, 'error');
-                console.error(error);
-            }
+    // ✅ FUNÇÃO CORRIGIDA — body, tipagem de params e parser da resposta
+    async function executeTursoQuery(sql, params = []) {
+        const response = await fetch(TURSO_URL, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${TURSO_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                requests: [
+                    {
+                        type: 'execute',
+                        stmt: {
+                            sql,
+                            args: params.map(p => {
+                                if (p === null || p === undefined) return { type: 'null' };
+                                if (typeof p === 'number' && Number.isInteger(p)) return { type: 'integer', value: String(p) };
+                                if (typeof p === 'number') return { type: 'float', value: String(p) };
+                                return { type: 'text', value: String(p) };
+                            })
+                        }
+                    },
+                    { type: 'close' }
+                ]
+            })
         });
 
-        async function gerarParticipantesFicticios(rifaId, numCotas) {
-            const nomes = [
-                'Maria Silva', 'João Santos', 'Ana Oliveira', 'Pedro Costa', 'Carla Souza',
-                'Lucas Pereira', 'Juliana Lima', 'Fernando Alves', 'Patricia Rocha', 'Roberto Dias',
-                'Fernanda Castro', 'Marcos Ribeiro', 'Lucia Martins', 'Carlos Ferreira', 'Beatriz Gomes',
-                'Rafael Barbosa', 'Claudia Mendes', 'Antonio Cardoso', 'Mariana Araujo', 'Paulo Ramos'
-            ];
-            const numParticipantes = Math.floor(numCotas * (0.3 + Math.random() * 0.5));
-            for (let i = 1; i <= numParticipantes; i++) {
-                const nomeAleatorio = nomes[Math.floor(Math.random() * nomes.length)];
-                await executeTursoQuery(
-                    'INSERT INTO participantes (rifa_id, nome, numero_cota) VALUES (?, ?, ?)',
-                    [rifaId, nomeAleatorio, i]
-                );
-            }
+        if (!response.ok) {
+            const txt = await response.text();
+            throw new Error(`HTTP ${response.status}: ${txt}`);
         }
 
-        async function carregarRifasAndamento() {
-            const container = document.getElementById('rifas-andamento');
-            container.innerHTML = '<p style="text-align:center;color:var(--text-light)">Carregando...</p>';
-            try {
-                const result = await executeTursoQuery(
-                    "SELECT * FROM rifas WHERE status = 'ativa' ORDER BY data_criacao DESC"
-                );
-                const rifas = result.rows;
+        const data = await response.json();
 
-                if (rifas.length === 0) {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-icon">🎯</div>
-                            <h3>Nenhuma rifa ativa</h3>
-                            <p>Crie uma nova rifa para começar!</p>
-                        </div>`;
-                    return;
-                }
-
-                let html = '';
-                for (const rifa of rifas) {
-                    const [id, nome, descricao, numCotas, valorCota, dataSorteio] = rifa;
-                    const countResult = await executeTursoQuery(
-                        'SELECT COUNT(*) FROM participantes WHERE rifa_id = ?', [id]
-                    );
-                    const participantes = countResult.rows[0]?.[0] || 0;
-                    const percentual = Math.round((participantes / numCotas) * 100);
-
-                    html += `
-                        <div class="rifa-card">
-                            <h3 class="rifa-title">${nome}</h3>
-                            ${descricao ? `<p style="color:var(--text-light);margin-bottom:1rem">${descricao}</p>` : ''}
-                            <div class="rifa-info">
-                                <div class="rifa-info-item">
-                                    <span class="rifa-info-label">Total de Cotas</span>
-                                    <span class="rifa-info-value">${numCotas}</span>
-                                </div>
-                                <div class="rifa-info-item">
-                                    <span class="rifa-info-label">Valor por Cota</span>
-                                    <span class="rifa-info-value">R$ ${parseFloat(valorCota).toFixed(2)}</span>
-                                </div>
-                                <div class="rifa-info-item">
-                                    <span class="rifa-info-label">Data do Sorteio</span>
-                                    <span class="rifa-info-value">${new Date(dataSorteio + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
-                                </div>
-                                <div class="rifa-info-item">
-                                    <span class="rifa-info-label">Cotas Vendidas</span>
-                                    <span class="rifa-info-value">${participantes} / ${numCotas}</span>
-                                </div>
-                            </div>
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width:${percentual}%"></div>
-                            </div>
-                            <p style="text-align:center;color:var(--text-light);font-size:0.9rem;margin-top:0.5rem">
-                                ${percentual}% vendido
-                            </p>
-                        </div>`;
-                }
-                container.innerHTML = html;
-            } catch (error) {
-                container.innerHTML = `<p style="color:var(--error)">Erro: ${error.message}</p>`;
-                console.error(error);
-            }
+        // Verificar erro retornado pela API
+        if (data.results?.[0]?.type === 'error') {
+            throw new Error(data.results[0].error?.message || 'Erro desconhecido no Turso');
         }
 
-        async function carregarRifasSortear() {
-            const select = document.getElementById('select-rifa-sortear');
-            try {
-                const result = await executeTursoQuery(
-                    "SELECT id, nome FROM rifas WHERE status = 'ativa' ORDER BY data_sorteio ASC"
-                );
-                const rifas = result.rows;
+        const result = data.results?.[0]?.response?.result;
 
-                if (rifas.length === 0) {
-                    select.innerHTML = '<option value="">Nenhuma rifa disponível</option>';
-                    return;
-                }
-                select.innerHTML = '<option value="">Selecione uma rifa...</option>';
-                rifas.forEach(([id, nome]) => {
-                    select.innerHTML += `<option value="${id}">${nome}</option>`;
-                });
-            } catch (error) {
-                console.error(error);
-                select.innerHTML = '<option value="">Erro ao carregar rifas</option>';
-            }
+        // Converter rows para valores tipados
+        const rows = (result?.rows || []).map(row =>
+            row.map(cell => {
+                if (cell.type === 'null') return null;
+                if (cell.type === 'integer') return parseInt(cell.value);
+                if (cell.type === 'float') return parseFloat(cell.value);
+                return cell.value;
+            })
+        );
+
+        return {
+            rows,
+            cols: (result?.cols || []).map(c => c.name),
+            lastInsertRowid: result?.last_insert_rowid ?? null
+        };
+    }
+
+    // Inicializar tabelas
+    async function initDatabase() {
+        try {
+            await executeTursoQuery(`
+                CREATE TABLE IF NOT EXISTS rifas (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nome TEXT NOT NULL,
+                    descricao TEXT,
+                    num_cotas INTEGER NOT NULL,
+                    valor_cota REAL NOT NULL,
+                    data_sorteio TEXT NOT NULL,
+                    status TEXT DEFAULT 'ativa',
+                    data_criacao TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+            await executeTursoQuery(`
+                CREATE TABLE IF NOT EXISTS participantes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    rifa_id INTEGER NOT NULL,
+                    nome TEXT NOT NULL,
+                    numero_cota INTEGER NOT NULL,
+                    FOREIGN KEY (rifa_id) REFERENCES rifas(id)
+                )
+            `);
+            await executeTursoQuery(`
+                CREATE TABLE IF NOT EXISTS resultados (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    rifa_id INTEGER NOT NULL,
+                    vencedor_nome TEXT NOT NULL,
+                    numero_sorteado INTEGER NOT NULL,
+                    data_sorteio TEXT DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (rifa_id) REFERENCES rifas(id)
+                )
+            `);
+            console.log('✅ Banco inicializado!');
+        } catch (err) {
+            console.error('❌ Erro ao inicializar banco:', err.message);
+        }
+    }
+
+    // Navegação
+    function showTab(tabName, btn) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`tab-${tabName}`).classList.add('active');
+        btn.classList.add('active');
+
+        if (tabName === 'andamento') carregarRifasAndamento();
+        else if (tabName === 'sortear') carregarRifasSortear();
+        else if (tabName === 'resultados') carregarResultados();
+    }
+
+    function showAlert(msg, type = 'success') {
+        const c = document.getElementById('alert-container');
+        c.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+        setTimeout(() => { c.innerHTML = ''; }, 5000);
+    }
+
+    // Criar rifa
+    document.getElementById('form-criar-rifa').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const nome      = document.getElementById('nome-rifa').value.trim();
+        const descricao = document.getElementById('descricao-rifa').value.trim();
+        const numCotas  = parseInt(document.getElementById('num-cotas').value);
+        const valorCota = parseFloat(document.getElementById('valor-cota').value);
+        const dataSorteio = document.getElementById('data-sorteio').value;
+
+        const btn = e.target.querySelector('button[type=submit]');
+        btn.disabled = true;
+        btn.textContent = 'Criando...';
+
+        try {
+            const res = await executeTursoQuery(
+                `INSERT INTO rifas (nome, descricao, num_cotas, valor_cota, data_sorteio) VALUES (?, ?, ?, ?, ?)`,
+                [nome, descricao || null, numCotas, valorCota, dataSorteio]
+            );
+
+            const rifaId = parseInt(res.lastInsertRowid);
+            showAlert('✅ Rifa criada com sucesso!', 'success');
+            e.target.reset();
+
+            if (rifaId) await gerarParticipantesFicticios(rifaId, numCotas);
+
+        } catch (err) {
+            showAlert('❌ Erro ao criar rifa: ' + err.message, 'error');
+            console.error(err);
         }
 
-        async function realizarSorteio() {
-            const rifaId = document.getElementById('select-rifa-sortear').value;
-            if (!rifaId) { alert('Selecione uma rifa primeiro!'); return; }
+        btn.disabled = false;
+        btn.textContent = 'Criar Rifa';
+    });
 
-            const btnSortear = document.getElementById('btn-sortear');
-            btnSortear.disabled = true;
-            btnSortear.innerHTML = '<span class="loading"></span> Sorteando...';
+    // Participantes fictícios
+    async function gerarParticipantesFicticios(rifaId, numCotas) {
+        const nomes = [
+            'Maria Silva','João Santos','Ana Oliveira','Pedro Costa','Carla Souza',
+            'Lucas Pereira','Juliana Lima','Fernando Alves','Patricia Rocha','Roberto Dias',
+            'Fernanda Castro','Marcos Ribeiro','Lucia Martins','Carlos Ferreira','Beatriz Gomes',
+            'Rafael Barbosa','Claudia Mendes','Antonio Cardoso','Mariana Araujo','Paulo Ramos'
+        ];
+        const total = Math.floor(numCotas * (0.3 + Math.random() * 0.5));
+        for (let i = 1; i <= total; i++) {
+            const nome = nomes[Math.floor(Math.random() * nomes.length)];
+            await executeTursoQuery(
+                'INSERT INTO participantes (rifa_id, nome, numero_cota) VALUES (?, ?, ?)',
+                [rifaId, nome, i]
+            );
+        }
+    }
 
-            try {
-                const result = await executeTursoQuery(
-                    'SELECT * FROM participantes WHERE rifa_id = ?', [parseInt(rifaId)]
-                );
-                const participantes = result.rows;
+    // Rifas em andamento
+    async function carregarRifasAndamento() {
+        const container = document.getElementById('rifas-andamento');
+        container.innerHTML = '<p style="text-align:center;color:var(--text-light)">Carregando...</p>';
+        try {
+            const { rows } = await executeTursoQuery(
+                "SELECT * FROM rifas WHERE status = 'ativa' ORDER BY data_criacao DESC"
+            );
 
-                if (participantes.length === 0) {
-                    alert('Esta rifa não possui participantes!');
-                    btnSortear.disabled = false;
-                    btnSortear.innerHTML = 'Realizar Sorteio';
-                    return;
-                }
-
-                const vencedor = participantes[Math.floor(Math.random() * participantes.length)];
-                const [, , nomeVencedor, numeroCota] = vencedor;
-
-                await executeTursoQuery(
-                    'INSERT INTO resultados (rifa_id, vencedor_nome, numero_sorteado) VALUES (?, ?, ?)',
-                    [parseInt(rifaId), nomeVencedor, numeroCota]
-                );
-                await executeTursoQuery(
-                    "UPDATE rifas SET status = 'sorteada' WHERE id = ?", [parseInt(rifaId)]
-                );
-
-                const display = document.getElementById('vencedor-nome');
-                display.textContent = `🏆 ${nomeVencedor} — Cota #${numeroCota}`;
-                display.style.animation = 'none';
-                document.getElementById('sorteio-resultado').style.display = 'block';
-                setTimeout(() => { display.style.animation = 'pulse 0.5s ease'; }, 10);
-
-                setTimeout(() => carregarRifasSortear(), 2000);
-            } catch (error) {
-                alert('Erro ao realizar sorteio: ' + error.message);
-                console.error(error);
+            if (!rows.length) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">🎯</div>
+                        <h3>Nenhuma rifa ativa</h3>
+                        <p>Crie uma nova rifa para começar!</p>
+                    </div>`;
+                return;
             }
 
-            btnSortear.disabled = false;
-            btnSortear.innerHTML = 'Realizar Sorteio';
-        }
+            let html = '';
+            for (const [id, nome, descricao, numCotas, valorCota, dataSorteio] of rows) {
+                const { rows: countRows } = await executeTursoQuery(
+                    'SELECT COUNT(*) FROM participantes WHERE rifa_id = ?', [id]
+                );
+                const participantes = countRows[0]?.[0] || 0;
+                const pct = Math.round((participantes / numCotas) * 100);
 
-        async function carregarResultados() {
-            const container = document.getElementById('resultados-lista');
-            container.innerHTML = '<p style="text-align:center;color:var(--text-light)">Carregando...</p>';
-            try {
-                const result = await executeTursoQuery(`
-                    SELECT r.id, r.nome, r.descricao, r.num_cotas, r.valor_cota,
-                           res.vencedor_nome, res.numero_sorteado, res.data_sorteio
-                    FROM rifas r
-                    INNER JOIN resultados res ON r.id = res.rifa_id
-                    ORDER BY res.data_sorteio DESC
-                `);
-                const resultados = result.rows;
-
-                if (resultados.length === 0) {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-icon">🏆</div>
-                            <h3>Nenhum sorteio realizado</h3>
-                            <p>Os resultados dos sorteios aparecerão aqui</p>
-                        </div>`;
-                    return;
-                }
-
-                let html = '';
-                resultados.forEach(([id, nome, descricao, numCotas, valorCota, vencedorNome, numeroSorteado, dataResultado]) => {
-                    html += `
-                        <div class="resultado-card">
-                            <div class="resultado-header">
-                                <div class="resultado-title">${nome}</div>
-                                <div class="resultado-data">${new Date(dataResultado).toLocaleDateString('pt-BR')}</div>
+                html += `
+                    <div class="rifa-card">
+                        <h3 class="rifa-title">${nome}</h3>
+                        ${descricao ? `<p style="color:var(--text-light);margin-bottom:1rem">${descricao}</p>` : ''}
+                        <div class="rifa-info">
+                            <div class="rifa-info-item">
+                                <span class="rifa-info-label">Total de Cotas</span>
+                                <span class="rifa-info-value">${numCotas}</span>
                             </div>
-                            ${descricao ? `<p style="color:var(--text-light);margin-bottom:1rem">${descricao}</p>` : ''}
-                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:1rem">
-                                <div>
-                                    <div style="font-size:0.85rem;color:var(--text-light)">Total de Cotas</div>
-                                    <div style="font-weight:600">${numCotas}</div>
-                                </div>
-                                <div>
-                                    <div style="font-size:0.85rem;color:var(--text-light)">Valor por Cota</div>
-                                    <div style="font-weight:600">R$ ${parseFloat(valorCota).toFixed(2)}</div>
-                                </div>
-                                <div>
-                                    <div style="font-size:0.85rem;color:var(--text-light)">Número Sorteado</div>
-                                    <div style="font-weight:600;color:var(--accent)">#${numeroSorteado}</div>
-                                </div>
+                            <div class="rifa-info-item">
+                                <span class="rifa-info-label">Valor por Cota</span>
+                                <span class="rifa-info-value">R$ ${parseFloat(valorCota).toFixed(2)}</span>
                             </div>
-                            <div class="vencedor-info">
-                                <div style="font-size:0.85rem;color:var(--text-light);margin-bottom:0.25rem">🏆 Vencedor</div>
-                                <div class="vencedor-nome">${vencedorNome}</div>
+                            <div class="rifa-info-item">
+                                <span class="rifa-info-label">Data do Sorteio</span>
+                                <span class="rifa-info-value">${new Date(dataSorteio + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
                             </div>
-                        </div>`;
-                });
-                container.innerHTML = html;
-            } catch (error) {
-                container.innerHTML = `<p style="color:var(--error)">Erro: ${error.message}</p>`;
-                console.error(error);
+                            <div class="rifa-info-item">
+                                <span class="rifa-info-label">Cotas Vendidas</span>
+                                <span class="rifa-info-value">${participantes} / ${numCotas}</span>
+                            </div>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width:${pct}%"></div>
+                        </div>
+                        <p style="text-align:center;color:var(--text-light);font-size:0.9rem;margin-top:0.5rem">${pct}% vendido</p>
+                    </div>`;
             }
+            container.innerHTML = html;
+
+        } catch (err) {
+            container.innerHTML = `<p style="color:var(--error)">❌ Erro: ${err.message}</p>`;
+        }
+    }
+
+    // Select de rifas para sortear
+    async function carregarRifasSortear() {
+        const select = document.getElementById('select-rifa-sortear');
+        try {
+            const { rows } = await executeTursoQuery(
+                "SELECT id, nome FROM rifas WHERE status = 'ativa' ORDER BY data_sorteio ASC"
+            );
+            if (!rows.length) {
+                select.innerHTML = '<option value="">Nenhuma rifa disponível</option>';
+                return;
+            }
+            select.innerHTML = '<option value="">Selecione uma rifa...</option>' +
+                rows.map(([id, nome]) => `<option value="${id}">${nome}</option>`).join('');
+        } catch (err) {
+            select.innerHTML = '<option value="">Erro ao carregar</option>';
+            console.error(err);
+        }
+    }
+
+    // Realizar sorteio
+    async function realizarSorteio() {
+        const rifaId = parseInt(document.getElementById('select-rifa-sortear').value);
+        if (!rifaId) { alert('Selecione uma rifa primeiro!'); return; }
+
+        const btn = document.getElementById('btn-sortear');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading"></span> Sorteando...';
+
+        try {
+            const { rows } = await executeTursoQuery(
+                'SELECT id, nome, numero_cota FROM participantes WHERE rifa_id = ?', [rifaId]
+            );
+
+            if (!rows.length) {
+                alert('Esta rifa não possui participantes!');
+                btn.disabled = false;
+                btn.innerHTML = 'Realizar Sorteio';
+                return;
+            }
+
+            const vencedor = rows[Math.floor(Math.random() * rows.length)];
+            const [, nomeVencedor, numeroCota] = vencedor;
+
+            await executeTursoQuery(
+                'INSERT INTO resultados (rifa_id, vencedor_nome, numero_sorteado) VALUES (?, ?, ?)',
+                [rifaId, nomeVencedor, numeroCota]
+            );
+            await executeTursoQuery(
+                "UPDATE rifas SET status = 'sorteada' WHERE id = ?", [rifaId]
+            );
+
+            const display = document.getElementById('vencedor-nome');
+            display.textContent = `🏆 ${nomeVencedor} — Cota #${numeroCota}`;
+            display.style.animation = 'none';
+            document.getElementById('sorteio-resultado').style.display = 'block';
+            setTimeout(() => { display.style.animation = 'pulse 0.5s ease'; }, 10);
+
+            setTimeout(carregarRifasSortear, 2000);
+
+        } catch (err) {
+            alert('Erro ao sortear: ' + err.message);
+            console.error(err);
         }
 
-        window.addEventListener('DOMContentLoaded', async () => {
-            await initDatabase();
-            const hoje = new Date().toISOString().split('T')[0];
-            document.getElementById('data-sorteio').min = hoje;
-        });
-    </script>
+        btn.disabled = false;
+        btn.innerHTML = 'Realizar Sorteio';
+    }
+
+    // Resultados
+    async function carregarResultados() {
+        const container = document.getElementById('resultados-lista');
+        container.innerHTML = '<p style="text-align:center;color:var(--text-light)">Carregando...</p>';
+        try {
+            const { rows } = await executeTursoQuery(`
+                SELECT r.nome, r.descricao, r.num_cotas, r.valor_cota,
+                       res.vencedor_nome, res.numero_sorteado, res.data_sorteio
+                FROM rifas r
+                INNER JOIN resultados res ON r.id = res.rifa_id
+                ORDER BY res.data_sorteio DESC
+            `);
+
+            if (!rows.length) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">🏆</div>
+                        <h3>Nenhum sorteio realizado</h3>
+                        <p>Os resultados aparecerão aqui</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = rows.map(([nome, descricao, numCotas, valorCota, vencedorNome, numeroSorteado, dataResultado]) => `
+                <div class="resultado-card">
+                    <div class="resultado-header">
+                        <div class="resultado-title">${nome}</div>
+                        <div class="resultado-data">${new Date(dataResultado).toLocaleDateString('pt-BR')}</div>
+                    </div>
+                    ${descricao ? `<p style="color:var(--text-light);margin-bottom:1rem">${descricao}</p>` : ''}
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:1rem">
+                        <div>
+                            <div style="font-size:0.85rem;color:var(--text-light)">Total de Cotas</div>
+                            <div style="font-weight:600">${numCotas}</div>
+                        </div>
+                        <div>
+                            <div style="font-size:0.85rem;color:var(--text-light)">Valor por Cota</div>
+                            <div style="font-weight:600">R$ ${parseFloat(valorCota).toFixed(2)}</div>
+                        </div>
+                        <div>
+                            <div style="font-size:0.85rem;color:var(--text-light)">Número Sorteado</div>
+                :600;color:var(--accent)">#${numeroSorteado}</div>
+                        </div>
+                    </div>
+                    <div class="vencedor-info">
+                        <div style="font-size:0.85rem;color:var(--text-light);margin-bottom:0.25rem">🏆 Vencedor</div>
+                        <div class="vencedor-nome">${vencedorNome}</div>
+                    </div>
+                </div>
+            `).join('');
+
+        } catch (err) {
+            container.innerHTML = `<p style="color:var(--error)">❌ Erro: ${err.message}</p>`;
+        }
+    }
+
+    // Boot
+    window.addEventListener('DOMContentLoaded', async () => {
+        await initDatabase();
+        document.getElementById('data-sorteio').min = new Date().toISOString().split('T')[0];
+    });
+</script>
 </body>
 </html>
