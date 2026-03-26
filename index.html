@@ -77,6 +77,8 @@
         .cota-btn.vendida { background: #efefef; color: #9a9a9a; cursor: not-allowed; text-decoration: line-through; }
         .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; z-index: 999; padding: 1rem; }
         .modal-card { width: min(480px, 100%); background: white; border-radius: 14px; padding: 1.25rem; box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
+        .pix-link { border: none; background: transparent; color: var(--primary); font-weight: 700; text-decoration: underline; cursor: pointer; padding: 0; font-family: inherit; font-size: inherit; }
+        .qr-img { width: 280px; max-width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem; background: #fff; }
         @media (min-width: 980px) {
             .rifa-layout { display: grid; grid-template-columns: minmax(300px, 360px) 1fr; gap: 1.2rem; align-items: start; }
             .cotas-lateral { margin-top: 0; }
@@ -162,6 +164,23 @@
                 </div>
             </div>
         </div>
+        <div id="modal-qr-pix" class="modal-backdrop">
+            <div class="modal-card" style="max-width:560px">
+                <h3 style="color:var(--primary);font-family:'Playfair Display',serif;margin-bottom:0.5rem">Pagamento via PIX</h3>
+                <p id="qr-pix-descricao" style="color:var(--text-light);margin-bottom:1rem"></p>
+                <div style="display:flex;justify-content:center;margin-bottom:1rem">
+                    <img id="qr-pix-img" class="qr-img" alt="QR Code PIX" />
+                </div>
+                <div class="form-group" style="margin-bottom:0.75rem">
+                    <label class="form-label">PIX Copia e Cola</label>
+                    <input class="form-input" id="pix-copia-cola" readonly />
+                </div>
+                <div style="display:flex;gap:0.75rem;justify-content:flex-end;flex-wrap:wrap">
+                    <button class="btn btn-accent" type="button" onclick="copiarPixCopiaCola()">Copiar código PIX</button>
+                    <button class="btn" type="button" style="background:transparent;color:var(--primary);box-shadow:none;border:2px solid var(--border)" onclick="fecharModalQrPix()">Fechar</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- ABA PAGAMENTO -->
@@ -170,7 +189,9 @@
         <p class="page-subtitle">Participantes que escolheram cotas e dados para pagamento</p>
         <div class="card" style="margin-bottom:1.2rem">
             <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
-                <div style="font-weight:700;color:var(--primary)">Forma de pagamento: PIX</div>
+                <div style="font-weight:700;color:var(--primary)">Forma de pagamento:
+                    <button type="button" class="pix-link" onclick="abrirQrPix(0, 'Pagamento de cota')">PIX</button>
+                </div>
                 <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem">
                     Chave PIX: <strong id="pix-chave">12389096719</strong>
                 </div>
@@ -522,6 +543,100 @@
         modal.style.display = 'none';
     }
 
+    const PIX_KEY = '12389096719';
+    const PIX_MERCHANT_NAME = 'RIFAS IGREJA';
+    const PIX_MERCHANT_CITY = 'SAOPAULO';
+
+    function formatPixField(id, value) {
+        const v = String(value);
+        return `${id}${String(v.length).padStart(2, '0')}${v}`;
+    }
+
+    function sanitizePixText(value, maxLen) {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^A-Za-z0-9 .\-]/g, '')
+            .trim()
+            .toUpperCase()
+            .slice(0, maxLen);
+    }
+
+    function crc16Ccitt(payload) {
+        let crc = 0xFFFF;
+        for (let i = 0; i < payload.length; i++) {
+            crc ^= payload.charCodeAt(i) << 8;
+            for (let j = 0; j < 8; j++) {
+                crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+                crc &= 0xFFFF;
+            }
+        }
+        return crc.toString(16).toUpperCase().padStart(4, '0');
+    }
+
+    function gerarPayloadPix(valor = 0, descricao = 'PAGAMENTO COTA') {
+        const merchantName = sanitizePixText(PIX_MERCHANT_NAME, 25) || 'RIFAS IGREJA';
+        const merchantCity = sanitizePixText(PIX_MERCHANT_CITY, 15) || 'SAOPAULO';
+        const txid = 'COTA' + Date.now().toString().slice(-10);
+        const desc = sanitizePixText(descricao, 60);
+
+        const gui = formatPixField('00', 'br.gov.bcb.pix');
+        const chave = formatPixField('01', PIX_KEY);
+        const infoAdicional = desc ? formatPixField('02', desc) : '';
+        const merchantAccountInfo = formatPixField('26', gui + chave + infoAdicional);
+
+        let payload =
+            formatPixField('00', '01') +
+            formatPixField('01', '12') +
+            merchantAccountInfo +
+            formatPixField('52', '0000') +
+            formatPixField('53', '986');
+
+        if (Number(valor) > 0) {
+            payload += formatPixField('54', Number(valor).toFixed(2));
+        }
+
+        payload +=
+            formatPixField('58', 'BR') +
+            formatPixField('59', merchantName) +
+            formatPixField('60', merchantCity) +
+            formatPixField('62', formatPixField('05', txid));
+
+        const semCrc = payload + '6304';
+        return semCrc + crc16Ccitt(semCrc);
+    }
+
+    function abrirQrPix(valor = 0, descricao = 'Pagamento PIX') {
+        const payload = gerarPayloadPix(valor, descricao);
+        const modal = document.getElementById('modal-qr-pix');
+        const descricaoEl = document.getElementById('qr-pix-descricao');
+        const input = document.getElementById('pix-copia-cola');
+        const img = document.getElementById('qr-pix-img');
+
+        descricaoEl.textContent = Number(valor) > 0
+            ? `Escaneie para pagar R$ ${Number(valor).toFixed(2)} - ${descricao}`
+            : `Escaneie para pagar via PIX - ${descricao}`;
+        input.value = payload;
+        img.src = `https://api.qrserver.com/v1/create-qr-code/?size=360x360&data=${encodeURIComponent(payload)}`;
+        modal.style.display = 'flex';
+    }
+
+    function fecharModalQrPix() {
+        const modal = document.getElementById('modal-qr-pix');
+        modal.style.display = 'none';
+    }
+
+    async function copiarPixCopiaCola() {
+        const codigo = document.getElementById('pix-copia-cola')?.value || '';
+        if (!codigo) return;
+        try {
+            await navigator.clipboard.writeText(codigo);
+            alert('✅ Código PIX copiado.');
+        } catch (err) {
+            alert('Não foi possível copiar automaticamente. Copie manualmente o código PIX.');
+        }
+    }
+
     async function copiarChavePix() {
         const chave = document.getElementById('pix-chave')?.textContent?.trim() || '12389096719';
         try {
@@ -619,7 +734,7 @@
                         </div>
                         <div>
                             <div style="font-size:0.85rem;color:var(--text-light)">Pagamento</div>
-                            <div style="font-weight:600;color:var(--primary)">PIX: 12389096719</div>
+                            <button type="button" class="pix-link" onclick="abrirQrPix(${parseFloat(valorCota).toFixed(2)}, 'Rifa ${escapeForJsString(nomeRifa)} - Cota #${numeroCota}')">PIX: 12389096719</button>
                         </div>
                     </div>
                 </div>
