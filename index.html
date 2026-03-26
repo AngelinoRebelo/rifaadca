@@ -68,7 +68,8 @@
         .alert { padding: 1rem 1.5rem; border-radius: 10px; margin-bottom: 1.5rem; font-weight: 500; }
         .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .cotas-container { display: none; margin-top: 1rem; padding: 0.75rem; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); }
+        .cotas-painel-full { display: none; margin-top: 1.5rem; width: 100%; }
+        .cotas-container { margin-top: 0.75rem; padding: 0.75rem; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); }
         .cotas-row { display: flex; flex-wrap: nowrap; gap: 0.45rem; overflow-x: auto; padding-bottom: 0.3rem; }
         .cota-btn { min-width: 52px; border: 1px solid var(--border); border-radius: 8px; background: white; color: var(--primary); padding: 0.5rem 0.25rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; font-size: 0.85rem; flex: 0 0 auto; }
         .cota-btn:hover { transform: translateY(-1px); border-color: var(--primary); }
@@ -141,6 +142,7 @@
         <p class="page-subtitle">Acompanhe as campanhas ativas no momento</p>
         <div id="alert-container-andamento"></div>
         <div id="rifas-andamento" class="rifas-grid"></div>
+        <div id="cotas-painel-full" class="card cotas-painel-full"></div>
         <div id="modal-cota" class="modal-backdrop">
             <div class="modal-card">
                 <h3 style="color:var(--primary);font-family:'Playfair Display',serif;margin-bottom:0.5rem">Reservar Cota</h3>
@@ -344,6 +346,8 @@
         btn.textContent = 'Criar Rifa';
     });
 
+    let rifaCotasAberta = null;
+
     // Rifas em andamento
     async function carregarRifasAndamento() {
         const container = document.getElementById('rifas-andamento');
@@ -370,16 +374,6 @@
                 );
                 const participantes = participanteRows.length;
                 const pct = Math.round((participantes / numCotas) * 100);
-                const mapaCotasVendidas = new Map(participanteRows.map(([numero, nomeParticipante]) => [Number(numero), nomeParticipante]));
-                let cotasHtml = '';
-                for (let n = 1; n <= numCotas; n++) {
-                    if (mapaCotasVendidas.has(n)) {
-                        const nomeComprador = escapeHtml(mapaCotasVendidas.get(n) || '');
-                        cotasHtml += `<button type="button" class="cota-btn vendida" title="Cota vendida para ${nomeComprador}" disabled>${n}</button>`;
-                    } else {
-                        cotasHtml += `<button type="button" class="cota-btn" title="Clique para reservar esta cota" onclick="abrirModalCota(${id}, ${n}, '${escapeForJsString(nome)}')">${n}</button>`;
-                    }
-                }
 
                 html += `
                     <div class="rifa-card">
@@ -408,15 +402,14 @@
                         </div>
                         <p style="text-align:center;color:var(--text-light);font-size:0.9rem;margin-top:0.5rem">${pct}% vendido</p>
                         <div style="margin-top:1rem;display:flex;justify-content:center">
-                            <button class="btn btn-accent" type="button" onclick="toggleCotas(${id})">Ver cotas</button>
-                        </div>
-                        <div class="cotas-container" id="cotas-container-${id}">
-                            <div style="font-size:0.9rem;color:var(--text-light);margin-bottom:0.5rem">Clique em uma cota livre para reservar.</div>
-                            <div class="cotas-row">${cotasHtml}</div>
+                            <button class="btn btn-accent" type="button" onclick="togglePainelCotas(${id}, '${escapeForJsString(nome)}')">Ver cotas</button>
                         </div>
                     </div>`;
             }
             container.innerHTML = html;
+            if (rifaCotasAberta) {
+                await renderPainelCotas(rifaCotasAberta.id, rifaCotasAberta.nome);
+            }
 
         } catch (err) {
             container.innerHTML = `<p style="color:var(--error)">❌ Erro: ${err.message}</p>`;
@@ -453,13 +446,50 @@
         inputNome.focus();
     }
 
-    function toggleCotas(rifaId) {
-        document.querySelectorAll('.cotas-container').forEach(el => {
-            if (el.id !== `cotas-container-${rifaId}`) el.style.display = 'none';
-        });
-        const alvo = document.getElementById(`cotas-container-${rifaId}`);
-        if (!alvo) return;
-        alvo.style.display = alvo.style.display === 'block' ? 'none' : 'block';
+    async function togglePainelCotas(rifaId, nomeRifa) {
+        if (rifaCotasAberta && rifaCotasAberta.id === rifaId) {
+            const painel = document.getElementById('cotas-painel-full');
+            painel.style.display = 'none';
+            painel.innerHTML = '';
+            rifaCotasAberta = null;
+            return;
+        }
+        rifaCotasAberta = { id: rifaId, nome: nomeRifa };
+        await renderPainelCotas(rifaId, nomeRifa);
+    }
+
+    async function renderPainelCotas(rifaId, nomeRifa) {
+        const painel = document.getElementById('cotas-painel-full');
+        const { rows: rifaRows } = await executeTursoQuery(
+            'SELECT num_cotas FROM rifas WHERE id = ?',
+            [rifaId]
+        );
+        if (!rifaRows.length) return;
+        const numCotas = Number(rifaRows[0][0] || 0);
+
+        const { rows: participanteRows } = await executeTursoQuery(
+            'SELECT numero_cota, nome FROM participantes WHERE rifa_id = ? ORDER BY numero_cota ASC',
+            [rifaId]
+        );
+        const mapaCotasVendidas = new Map(participanteRows.map(([numero, nomeParticipante]) => [Number(numero), nomeParticipante]));
+        let cotasHtml = '';
+        for (let n = 1; n <= numCotas; n++) {
+            if (mapaCotasVendidas.has(n)) {
+                const nomeComprador = escapeHtml(mapaCotasVendidas.get(n) || '');
+                cotasHtml += `<button type="button" class="cota-btn vendida" title="Cota vendida para ${nomeComprador}" disabled>${n}</button>`;
+            } else {
+                cotasHtml += `<button type="button" class="cota-btn" title="Clique para reservar esta cota" onclick="abrirModalCota(${rifaId}, ${n}, '${escapeForJsString(nomeRifa)}')">${n}</button>`;
+            }
+        }
+
+        painel.innerHTML = `
+            <h3 style="color:var(--primary);font-family:'Playfair Display',serif">Cotas da rifa: ${escapeHtml(nomeRifa)}</h3>
+            <div class="cotas-container">
+                <div style="font-size:0.9rem;color:var(--text-light);margin-bottom:0.5rem">Clique em uma cota livre para reservar.</div>
+                <div class="cotas-row">${cotasHtml}</div>
+            </div>
+        `;
+        painel.style.display = 'block';
     }
 
     function fecharModalCota() {
