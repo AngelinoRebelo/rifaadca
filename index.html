@@ -164,23 +164,6 @@
                 </div>
             </div>
         </div>
-        <div id="modal-qr-pix" class="modal-backdrop">
-            <div class="modal-card" style="max-width:560px">
-                <h3 style="color:var(--primary);font-family:'Playfair Display',serif;margin-bottom:0.5rem">Pagamento via PIX</h3>
-                <p id="qr-pix-descricao" style="color:var(--text-light);margin-bottom:1rem"></p>
-                <div style="display:flex;justify-content:center;margin-bottom:1rem">
-                    <img id="qr-pix-img" class="qr-img" alt="QR Code PIX" />
-                </div>
-                <div class="form-group" style="margin-bottom:0.75rem">
-                    <label class="form-label">PIX Copia e Cola</label>
-                    <input class="form-input" id="pix-copia-cola" readonly />
-                </div>
-                <div style="display:flex;gap:0.75rem;justify-content:flex-end;flex-wrap:wrap">
-                    <button class="btn btn-accent" type="button" onclick="copiarPixCopiaCola()">Copiar código PIX</button>
-                    <button class="btn" type="button" style="background:transparent;color:var(--primary);box-shadow:none;border:2px solid var(--border)" onclick="fecharModalQrPix()">Fechar</button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- ABA PAGAMENTO -->
@@ -199,6 +182,23 @@
             </div>
         </div>
         <div id="pagamento-lista"></div>
+        <div id="modal-qr-pix" class="modal-backdrop">
+            <div class="modal-card" style="max-width:560px">
+                <h3 style="color:var(--primary);font-family:'Playfair Display',serif;margin-bottom:0.5rem">Pagamento via PIX</h3>
+                <p id="qr-pix-descricao" style="color:var(--text-light);margin-bottom:1rem"></p>
+                <div style="display:flex;justify-content:center;margin-bottom:1rem">
+                    <img id="qr-pix-img" class="qr-img" alt="QR Code PIX" />
+                </div>
+                <div class="form-group" style="margin-bottom:0.75rem">
+                    <label class="form-label">PIX Copia e Cola</label>
+                    <input class="form-input" id="pix-copia-cola" readonly />
+                </div>
+                <div style="display:flex;gap:0.75rem;justify-content:flex-end;flex-wrap:wrap">
+                    <button class="btn btn-accent" type="button" onclick="copiarPixCopiaCola()">Copiar código PIX</button>
+                    <button class="btn" type="button" style="background:transparent;color:var(--primary);box-shadow:none;border:2px solid var(--border)" onclick="fecharModalQrPix()">Fechar</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- ABA SORTEAR -->
