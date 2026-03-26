@@ -130,6 +130,7 @@
     <div id="tab-andamento" class="tab-content">
         <h1 class="page-title">Rifas em Andamento</h1>
         <p class="page-subtitle">Acompanhe as campanhas ativas no momento</p>
+        <div id="alert-container-andamento"></div>
         <div id="rifas-andamento" class="rifas-grid"></div>
     </div>
 
@@ -279,8 +280,12 @@
         else if (tabName === 'resultados') carregarResultados();
     }
 
-    function showAlert(msg, type = 'success') {
-        const c = document.getElementById('alert-container');
+    function showAlert(msg, type = 'success', containerId = 'alert-container') {
+        const c = document.getElementById(containerId);
+        if (!c) {
+            alert(msg);
+            return;
+        }
         c.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
         setTimeout(() => { c.innerHTML = ''; }, 5000);
     }
@@ -390,12 +395,106 @@
                             <div class="progress-fill" style="width:${pct}%"></div>
                         </div>
                         <p style="text-align:center;color:var(--text-light);font-size:0.9rem;margin-top:0.5rem">${pct}% vendido</p>
+
+                        <div style="margin-top:1rem;display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap">
+                            <button class="btn btn-accent" type="button" onclick="toggleFormParticipante(${id})">Incluir participante</button>
+                        </div>
+
+                        <div id="form-participante-${id}" style="display:none;margin-top:1rem;padding:1rem;border-radius:12px;background:var(--bg);border:1px solid var(--border)">
+                            <div class="form-group" style="margin-bottom:0.75rem">
+                                <label class="form-label">Nome do participante</label>
+                                <input class="form-input" id="participante-nome-${id}" placeholder="Ex: José da Silva" />
+                            </div>
+                            <div class="form-group" style="margin-bottom:0.75rem">
+                                <label class="form-label">Quantidade de cotas</label>
+                                <input type="number" min="1" value="1" class="form-input" id="participante-qtd-${id}" />
+                            </div>
+                            <div style="display:flex;gap:0.75rem;justify-content:flex-end;flex-wrap:wrap">
+                                <button class="btn" type="button" onclick="incluirParticipante(${id}, ${numCotas})" id="btn-incluir-participante-${id}">Salvar</button>
+                                <button class="btn" type="button" style="background:transparent;color:var(--primary);box-shadow:none;border:2px solid var(--border)"
+                                    onclick="toggleFormParticipante(${id})">Cancelar</button>
+                            </div>
+                        </div>
                     </div>`;
             }
             container.innerHTML = html;
 
         } catch (err) {
             container.innerHTML = `<p style="color:var(--error)">❌ Erro: ${err.message}</p>`;
+        }
+    }
+
+    function toggleFormParticipante(rifaId) {
+        const el = document.getElementById(`form-participante-${rifaId}`);
+        if (!el) return;
+        const isOpen = el.style.display !== 'none';
+        el.style.display = isOpen ? 'none' : 'block';
+        if (!isOpen) {
+            const nomeInput = document.getElementById(`participante-nome-${rifaId}`);
+            if (nomeInput) nomeInput.focus();
+        }
+    }
+
+    async function incluirParticipante(rifaId, numCotas) {
+        const nomeEl = document.getElementById(`participante-nome-${rifaId}`);
+        const qtdEl = document.getElementById(`participante-qtd-${rifaId}`);
+        const btn = document.getElementById(`btn-incluir-participante-${rifaId}`);
+
+        const nome = (nomeEl?.value || '').trim();
+        const qtd = parseInt(qtdEl?.value || '1', 10);
+
+        if (!nome) {
+            showAlert('❌ Informe o nome do participante.', 'error', 'alert-container-andamento');
+            return;
+        }
+        if (!Number.isFinite(qtd) || qtd < 1) {
+            showAlert('❌ Quantidade de cotas inválida.', 'error', 'alert-container-andamento');
+            return;
+        }
+
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Salvando...';
+        }
+
+        try {
+            const { rows: usedRows } = await executeTursoQuery(
+                'SELECT numero_cota FROM participantes WHERE rifa_id = ? ORDER BY numero_cota ASC',
+                [rifaId]
+            );
+
+            const used = new Set(usedRows.map(r => parseInt(r[0], 10)).filter(n => Number.isFinite(n)));
+            const selected = [];
+            for (let n = 1; n <= numCotas && selected.length < qtd; n++) {
+                if (!used.has(n)) selected.push(n);
+            }
+
+            if (selected.length < qtd) {
+                showAlert(`❌ Não há cotas suficientes disponíveis. Restam ${selected.length}.`, 'error', 'alert-container-andamento');
+                return;
+            }
+
+            for (const numero of selected) {
+                await executeTursoQuery(
+                    'INSERT INTO participantes (rifa_id, nome, numero_cota) VALUES (?, ?, ?)',
+                    [rifaId, nome, numero]
+                );
+            }
+
+            showAlert(`✅ Participante incluído! Cotas: ${selected.map(n => `#${n}`).join(', ')}`, 'success', 'alert-container-andamento');
+            toggleFormParticipante(rifaId);
+            await carregarRifasAndamento();
+
+            // mantém o select de sorteio atualizado, caso a aba esteja aberta depois
+            carregarRifasSortear();
+        } catch (err) {
+            showAlert('❌ Erro ao incluir participante: ' + err.message, 'error', 'alert-container-andamento');
+            console.error(err);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Salvar';
+            }
         }
     }
 
@@ -508,7 +607,7 @@
                         </div>
                         <div>
                             <div style="font-size:0.85rem;color:var(--text-light)">Número Sorteado</div>
-                :600;color:var(--accent)">#${numeroSorteado}</div>
+                            <div style="font-weight:600;color:var(--accent)">#${numeroSorteado}</div>
                         </div>
                     </div>
                     <div class="vencedor-info">
