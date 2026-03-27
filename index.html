@@ -88,6 +88,7 @@
         .cota-btn { min-width: 52px; border: 1px solid var(--border); border-radius: 8px; background: white; color: var(--primary); padding: 0.5rem 0.25rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; font-size: 0.85rem; flex: 0 0 auto; }
         .cota-btn:hover { transform: translateY(-1px); border-color: var(--primary); }
         .cota-btn.vendida { background: #efefef; color: #9a9a9a; cursor: not-allowed; text-decoration: line-through; }
+        .cota-btn.selecionada { background: var(--accent); color: #2b2b2b; border-color: #c29d2e; box-shadow: 0 2px 8px rgba(212,175,55,0.35); }
         .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; z-index: 999; padding: 1rem; }
         .modal-card { width: min(480px, 100%); background: white; border-radius: 14px; padding: 1.25rem; box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
         .pix-link { border: none; background: transparent; color: var(--primary); font-weight: 700; text-decoration: underline; cursor: pointer; padding: 0; font-family: inherit; font-size: inherit; }
@@ -219,9 +220,9 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Outras cotas (opcional)</label>
-                    <input type="text" class="form-input" id="modal-cotas-extra" placeholder="Ex: 12, 15, 18" />
+                    <div id="modal-cotas-selecao" class="cotas-table" style="max-height:180px"></div>
                     <div style="font-size:0.82rem;color:var(--text-light);margin-top:0.35rem">
-                        Separe por vírgula para reservar mais de uma cota ao mesmo participante.
+                        Clique nas cotas livres para selecionar/desselecionar.
                     </div>
                 </div>
                 <div style="display:flex;gap:0.75rem;justify-content:flex-end;flex-wrap:wrap">
@@ -676,24 +677,67 @@
         return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     }
 
-    function abrirModalCota(rifaId, numeroCota, nomeRifa, numCotas = 0) {
+    async function abrirModalCota(rifaId, numeroCota, nomeRifa, numCotas = 0) {
         const modal = document.getElementById('modal-cota');
         const descricao = document.getElementById('modal-cota-descricao');
         const inputNome = document.getElementById('modal-cota-nome');
-        const inputExtras = document.getElementById('modal-cotas-extra');
+        const selecaoEl = document.getElementById('modal-cotas-selecao');
         const btn = document.getElementById('btn-confirmar-cota');
 
         modal.dataset.rifaId = String(rifaId);
         modal.dataset.numeroCota = String(numeroCota);
         modal.dataset.nomeRifa = String(nomeRifa);
         modal.dataset.numCotas = String(numCotas || 0);
+        modal.dataset.cotasSelecionadas = JSON.stringify([numeroCota]);
         descricao.textContent = `Rifa: ${nomeRifa} | Cota #${numeroCota}`;
         inputNome.value = '';
-        if (inputExtras) inputExtras.value = '';
         btn.disabled = false;
         btn.textContent = 'Confirmar';
+
+        try {
+            const { rows: ocupadasRows } = await executeTursoQuery(
+                'SELECT numero_cota FROM participantes WHERE rifa_id = ?',
+                [rifaId]
+            );
+            const ocupadas = new Set(ocupadasRows.map(r => Number(r[0])));
+            let html = '';
+            for (let n = 1; n <= numCotas; n++) {
+                if (ocupadas.has(n)) {
+                    html += `<button type="button" class="cota-btn vendida" disabled>${n}</button>`;
+                } else {
+                    const selectedClass = n === numeroCota ? 'selecionada' : '';
+                    html += `<button type="button" class="cota-btn ${selectedClass}" data-cota="${n}" onclick="toggleCotaModal(${n})">${n}</button>`;
+                }
+            }
+            selecaoEl.innerHTML = html;
+        } catch (err) {
+            selecaoEl.innerHTML = '<p style="color:var(--error)">Erro ao carregar cotas.</p>';
+        }
+
         modal.style.display = 'flex';
         inputNome.focus();
+    }
+
+    function toggleCotaModal(numeroCota) {
+        const modal = document.getElementById('modal-cota');
+        let selecionadas = [];
+        try {
+            selecionadas = JSON.parse(modal.dataset.cotasSelecionadas || '[]');
+        } catch (e) {
+            selecionadas = [];
+        }
+        const idx = selecionadas.indexOf(numeroCota);
+        if (idx >= 0) selecionadas.splice(idx, 1);
+        else selecionadas.push(numeroCota);
+        if (!selecionadas.length) {
+            selecionadas.push(parseInt(modal.dataset.numeroCota || '0', 10));
+        }
+        modal.dataset.cotasSelecionadas = JSON.stringify(selecionadas);
+
+        document.querySelectorAll('#modal-cotas-selecao .cota-btn[data-cota]').forEach(btn => {
+            const cota = parseInt(btn.dataset.cota || '0', 10);
+            btn.classList.toggle('selecionada', selecionadas.includes(cota));
+        });
     }
 
     async function togglePainelCotas(rifaId, nomeRifa) {
@@ -906,17 +950,24 @@
     async function confirmarCota() {
         const modal = document.getElementById('modal-cota');
         const inputNome = document.getElementById('modal-cota-nome');
-        const inputExtras = document.getElementById('modal-cotas-extra');
         const btn = document.getElementById('btn-confirmar-cota');
         const rifaId = parseInt(modal.dataset.rifaId || '0', 10);
-        const numeroCota = parseInt(modal.dataset.numeroCota || '0', 10);
         const numCotas = parseInt(modal.dataset.numCotas || '0', 10);
         const nome = (inputNome.value || '').trim();
-        const extrasTexto = (inputExtras?.value || '').trim();
+        let selecionadas = [];
+        try {
+            selecionadas = JSON.parse(modal.dataset.cotasSelecionadas || '[]');
+        } catch (e) {
+            selecionadas = [];
+        }
 
-        if (!rifaId || !numeroCota) return;
+        if (!rifaId) return;
         if (!nome) {
             showAlert('❌ Informe o nome da pessoa para esta cota.', 'error', 'alert-container-andamento');
+            return;
+        }
+        if (!selecionadas.length) {
+            showAlert('❌ Selecione ao menos uma cota.', 'error', 'alert-container-andamento');
             return;
         }
 
@@ -924,15 +975,11 @@
         btn.textContent = 'Salvando...';
 
         try {
-            const cotasSolicitadas = new Set([numeroCota]);
-            if (extrasTexto) {
-                const extras = extrasTexto.split(',').map(v => parseInt(v.trim(), 10)).filter(v => Number.isFinite(v));
-                for (const extra of extras) {
-                    if (numCotas > 0 && (extra < 1 || extra > numCotas)) {
-                        showAlert(`❌ A cota #${extra} está fora do intervalo permitido (1-${numCotas}).`, 'error', 'alert-container-andamento');
-                        return;
-                    }
-                    cotasSolicitadas.add(extra);
+            const cotasSolicitadas = new Set(selecionadas.map(v => Number(v)).filter(v => Number.isFinite(v)));
+            for (const cota of cotasSolicitadas) {
+                if (numCotas > 0 && (cota < 1 || cota > numCotas)) {
+                    showAlert(`❌ A cota #${cota} está fora do intervalo permitido (1-${numCotas}).`, 'error', 'alert-container-andamento');
+                    return;
                 }
             }
 
