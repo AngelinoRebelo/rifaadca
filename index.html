@@ -1049,6 +1049,9 @@
                             const cotasOrdenadas = participante.cotas.sort((a, b) => a.numeroCota - b.numeroCota);
                             const qtdPagas = cotasOrdenadas.filter(c => c.status === 'pago').length;
                             const qtdPendentes = cotasOrdenadas.filter(c => c.status !== 'pago').length;
+                            const totalPendente = qtdPendentes * parseFloat(grupo.valorCota);
+                            const cotasPendentes = cotasOrdenadas.filter(c => c.status !== 'pago');
+                            const idsPendentes = cotasPendentes.map(c => c.participanteId);
                             return `
                         <div class="resultado-card" style="margin-bottom:0.75rem;opacity:${qtdPendentes === 0 ? '0.85' : '1'}">
                             <div class="resultado-header">
@@ -1062,12 +1065,17 @@
                                 Cotas escolhidas:
                                 <strong>${cotasOrdenadas.map(c => `#${c.numeroCota}`).join(', ')}</strong>
                             </div>
+                            <div style="font-size:0.9rem;color:var(--text-light);margin-bottom:0.7rem">
+                                Total pendente:
+                                <strong>R$ ${totalPendente.toFixed(2)}</strong>
+                            </div>
                             <div style="display:flex;justify-content:flex-end;gap:0.5rem;flex-wrap:wrap">
-                                ${cotasOrdenadas.map(c => c.status === 'pago'
-                                    ? `<span class="status-pill paid">#${c.numeroCota} pago</span>`
+                                ${qtdPendentes === 0
+                                    ? '<span style="font-weight:700;color:var(--primary)">Pagamento aprovado</span>'
                                     : `<button type="button" class="btn btn-accent" style="padding:0.45rem 0.85rem;font-size:0.85rem"
-                                        onclick="pagarComMercadoPago(${c.participanteId}, ${parseFloat(grupo.valorCota).toFixed(2)}, 'Rifa ${escapeForJsString(grupo.nomeRifa)} - Cota #${c.numeroCota}')">Pagar #${c.numeroCota}</button>`
-                                ).join('')}
+                                        onclick="pagarMultiplasCotas(${idsPendentes[0]}, ${totalPendente.toFixed(2)}, 'Rifa ${escapeForJsString(grupo.nomeRifa)} - ${escapeForJsString(participante.nomeParticipante)}', ${JSON.stringify(idsPendentes)})">
+                                        Pagar total (${qtdPendentes} cotas)
+                                    </button>`}
                             </div>
                         </div>
                         `;
@@ -1126,6 +1134,34 @@
             alert('✅ Bloco de pagamento excluído com sucesso.');
         } catch (err) {
             alert('Erro ao excluir bloco: ' + err.message);
+        }
+    }
+
+    async function pagarMultiplasCotas(participanteIdBase, valorTotal, descricaoBase, participanteIds) {
+        try {
+            const descricao = `${descricaoBase} - ${participanteIds.length} cota(s)`;
+            const data = await criarCobrancaMercadoPago(participanteIdBase, valorTotal, descricao);
+            const copiaECola = data.copiaECola || data.qrCode || '';
+            if (!copiaECola) throw new Error('Backend nao retornou copia e cola PIX.');
+
+            // Abre um unico QR para pagamento total das cotas pendentes.
+            abrirQrPix(valorTotal, descricao, copiaECola);
+
+            // Marca o status de todas as cotas como pendente com mesmo mp_payment_id.
+            if (data.paymentId) {
+                for (const id of participanteIds) {
+                    await executeTursoQuery(
+                        'UPDATE participantes SET pagamento_status = ?, mp_payment_id = ? WHERE id = ?',
+                        ['pendente', String(data.paymentId), id]
+                    );
+                }
+            }
+
+            monitorarPagamento(participanteIdBase);
+        } catch (err) {
+            console.warn(err);
+            abrirQrPix(valorTotal, `${descricaoBase} (modo local)`);
+            alert(`Backend Mercado Pago indisponivel em ${PAYMENTS_API_BASE}. Configure /api em producao para ativar confirmacao automatica.`);
         }
     }
 
