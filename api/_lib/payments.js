@@ -94,7 +94,8 @@ export async function criarPagamentoPix({ participanteId, amount, description, n
     payment_method_id: 'pix',
     notification_url: notificationUrl,
     external_reference: String(participanteId),
-    payer: { email: `pagador_${participanteId}@rifas.local` }
+    // Mercado Pago (producao) exige email com dominio valido.
+    payer: { email: `pagador+${participanteId}@rifaadca.com` }
   };
   return mpPayment.create({
     body,
