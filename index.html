@@ -924,9 +924,10 @@
 
         try {
             const { rows } = await executeTursoQuery(`
-                SELECT p.id, p.nome, p.numero_cota, r.nome, r.valor_cota, COALESCE(p.pagamento_status, 'pendente')
+                SELECT p.id, p.nome, p.numero_cota, r.id, r.nome, r.valor_cota, COALESCE(p.pagamento_status, 'pendente')
                 FROM participantes p
                 INNER JOIN rifas r ON r.id = p.rifa_id
+                WHERE COALESCE(p.pagamento_status, 'pendente') = 'pendente'
                 ORDER BY r.nome ASC, p.numero_cota ASC
             `);
 
@@ -934,39 +935,48 @@
                 container.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-icon">💳</div>
-                        <h3>Nenhuma cota reservada</h3>
-                        <p>Quando alguém escolher uma cota, aparecerá aqui para pagamento.</p>
+                        <h3>Nenhum pagamento pendente</h3>
+                        <p>Quando alguém escolher uma cota, aparecerá aqui no bloco da rifa.</p>
                     </div>`;
                 return;
             }
 
-            container.innerHTML = rows.map(([participanteId, nomeParticipante, numeroCota, nomeRifa, valorCota, pagamentoStatus]) => `
-                <div class="resultado-card">
-                    <div class="resultado-header">
-                        <div class="resultado-title">${escapeHtml(nomeParticipante)}</div>
-                        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
-                            <div class="resultado-data">Cota #${numeroCota}</div>
-                            <span class="status-pill ${String(pagamentoStatus).toLowerCase() === 'pago' ? 'paid' : 'pending'}">
-                                ${String(pagamentoStatus).toLowerCase() === 'pago' ? 'Pago' : 'Pendente'}
-                            </span>
-                        </div>
+            const grupos = new Map();
+            for (const [participanteId, nomeParticipante, numeroCota, rifaId, nomeRifa, valorCota] of rows) {
+                if (!grupos.has(rifaId)) {
+                    grupos.set(rifaId, {
+                        nomeRifa,
+                        valorCota,
+                        itens: []
+                    });
+                }
+                grupos.get(rifaId).itens.push({ participanteId, nomeParticipante, numeroCota });
+            }
+
+            container.innerHTML = Array.from(grupos.values()).map(grupo => `
+                <div class="card" style="margin-bottom:1rem">
+                    <div class="resultado-header" style="margin-bottom:0.5rem">
+                        <div class="resultado-title">${escapeHtml(grupo.nomeRifa)}</div>
+                        <div class="resultado-data">${grupo.itens.length} pendente(s)</div>
                     </div>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:0.75rem">
-                        <div>
-                            <div style="font-size:0.85rem;color:var(--text-light)">Rifa</div>
-                            <div style="font-weight:600">${escapeHtml(nomeRifa)}</div>
-                        </div>
-                        <div>
-                            <div style="font-size:0.85rem;color:var(--text-light)">Valor</div>
-                            <div style="font-weight:600">R$ ${parseFloat(valorCota).toFixed(2)}</div>
-                        </div>
-                        <div>
-                            <div style="font-size:0.85rem;color:var(--text-light)">Pagamento</div>
-                            ${String(pagamentoStatus).toLowerCase() === 'pago'
-                                ? '<span style="font-weight:700;color:var(--primary)">Pagamento aprovado</span>'
-                                : `<button type="button" class="btn btn-accent" style="padding:0.45rem 0.85rem;font-size:0.9rem" onclick="pagarComMercadoPago(${participanteId}, ${parseFloat(valorCota).toFixed(2)}, 'Rifa ${escapeForJsString(nomeRifa)} - Cota #${numeroCota}')">Pagar</button>`}
-                        </div>
+                    <div style="font-size:0.9rem;color:var(--text-light);margin-bottom:0.75rem">
+                        Valor por cota: <strong>R$ ${parseFloat(grupo.valorCota).toFixed(2)}</strong>
                     </div>
+                    ${grupo.itens.map(item => `
+                        <div class="resultado-card" style="margin-bottom:0.75rem">
+                            <div class="resultado-header">
+                                <div class="resultado-title" style="font-size:1.05rem">${escapeHtml(item.nomeParticipante)}</div>
+                                <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+                                    <div class="resultado-data">Cota #${item.numeroCota}</div>
+                                    <span class="status-pill pending">Pendente</span>
+                                </div>
+                            </div>
+                            <div style="display:flex;justify-content:flex-end">
+                                <button type="button" class="btn btn-accent" style="padding:0.45rem 0.85rem;font-size:0.9rem"
+                                    onclick="pagarComMercadoPago(${item.participanteId}, ${parseFloat(grupo.valorCota).toFixed(2)}, 'Rifa ${escapeForJsString(grupo.nomeRifa)} - Cota #${item.numeroCota}')">Pagar</button>
+                            </div>
+                        </div>
+                    `).join('')}
                 </div>
             `).join('');
         } catch (err) {
