@@ -650,8 +650,12 @@
                                     <div class="progress-fill" style="width:${pct}%"></div>
                                 </div>
                                 <p style="text-align:center;color:var(--text-light);font-size:0.9rem;margin-top:0.5rem">${pct}% vendido</p>
-                                <div style="margin-top:1rem;display:flex;justify-content:center">
+                                <div style="margin-top:1rem;display:flex;justify-content:center;gap:0.75rem;flex-wrap:wrap">
                                     <button class="btn btn-accent" type="button" onclick="togglePainelCotas(${id}, '${escapeForJsString(nome)}')">Ver cotas</button>
+                                    ${isLoggedIn()
+                                        ? `<button class="btn" type="button" style="background:#8f2d2d;color:#fff"
+                                            onclick="excluirRifaComSenha(${id}, '${escapeForJsString(nome)}')">Excluir rifa</button>`
+                                        : ''}
                                 </div>
                             </div>
                             <div class="cotas-lateral" id="cotas-lateral-${id}">
@@ -1186,6 +1190,37 @@
             alert('✅ Bloco de pagamento excluído com sucesso.');
         } catch (err) {
             alert('Erro ao excluir bloco: ' + err.message);
+        }
+    }
+
+    async function excluirRifaComSenha(rifaId, nomeRifa) {
+        if (!isLoggedIn()) {
+            alert('Faça login para excluir uma rifa.');
+            abrirModalLogin();
+            return;
+        }
+        if (!confirm(`Excluir a rifa "${nomeRifa}"?\n\nSerão removidas todas as cotas, participantes, resultados e a própria rifa. Esta ação não pode ser desfeita.`)) {
+            return;
+        }
+        const senha = prompt('Confirme sua senha para excluir esta rifa:');
+        if (!senha) return;
+
+        try {
+            const senhaValida = await validarSenhaUsuarioLogado(senha);
+            if (!senhaValida) {
+                alert('Senha inválida. Exclusão cancelada.');
+                return;
+            }
+
+            await executeTursoQuery('DELETE FROM participantes WHERE rifa_id = ?', [rifaId]);
+            await executeTursoQuery('DELETE FROM resultados WHERE rifa_id = ?', [rifaId]);
+            await executeTursoQuery('DELETE FROM rifas WHERE id = ?', [rifaId]);
+            alert('✅ Rifa excluída com sucesso.');
+            await carregarRifasAndamento();
+            await carregarRifasSortear();
+            await carregarPagamentos();
+        } catch (err) {
+            alert('Erro ao excluir rifa: ' + err.message);
         }
     }
 
