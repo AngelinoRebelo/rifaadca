@@ -161,16 +161,22 @@
             <h3 style="color:var(--primary);font-family:'Playfair Display',serif;margin-bottom:0.5rem">🔐 Login</h3>
             <p style="color:var(--text-light);margin-bottom:1rem">Apenas usuários logados podem criar rifas.</p>
             <div class="form-group" style="margin-bottom:0.75rem">
-                <label class="form-label">Usuário</label>
-                <input type="text" id="login-usuario" class="form-input" placeholder="Digite seu usuário" />
+                <label class="form-label">Nome completo</label>
+                <input type="text" id="login-usuario" class="form-input" placeholder="Digite seu nome completo" />
             </div>
             <div class="form-group" style="margin-bottom:0.75rem">
                 <label class="form-label">Senha</label>
                 <input type="password" id="login-senha" class="form-input" placeholder="Digite sua senha" />
             </div>
-            <div style="font-size:0.8rem;color:var(--text-light);margin-bottom:1rem">Credenciais padrão: <strong>admin</strong> / <strong>123456</strong></div>
+            <div style="font-size:0.8rem;color:var(--text-light);margin-bottom:1rem">
+                Cadastro permitido somente para:<br>
+                <strong>GABRIEL ANGELINO REBELO MACHADO</strong>, <strong>RACHEL</strong>,<br>
+                <strong>SIMONE DA SILVA NASCIMENTO MACHADO</strong>,<br>
+                <strong>DANIEL DA SILVA MACHADO</strong>
+            </div>
             <div style="display:flex;gap:0.75rem;justify-content:flex-end;flex-wrap:wrap">
                 <button class="btn btn-accent" type="button" onclick="login()">Entrar</button>
+                <button class="btn" type="button" onclick="cadastrarUsuario()">Cadastrar</button>
                 <button class="btn" type="button" style="background:transparent;color:var(--primary);box-shadow:none;border:2px solid var(--border)" onclick="fecharModalLogin()">Cancelar</button>
             </div>
         </div>
@@ -264,8 +270,12 @@
     const TURSO_URL = 'https://database-cordovan-feather-vercel-icfg-ni4jeabacdgrdfgmcjlnprsu.aws-us-east-1.turso.io/v2/pipeline';
     const TURSO_TOKEN = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NzQ1MzQ0NjEsImlkIjoiMDE5ZDJhN2YtMDYwMS03Mzg2LTkzYjgtN2Y2NzI3NTgwNWM4IiwicmlkIjoiZDYyYTI2M2YtMjQzZi00ODU5LWIwMjQtMWUzZWRkZmY3ZjlkIn0.R7V76HhsQFC1vAdFH8Cyc6VOMK4gLvU_6Vy-xt-J6lRZFUo26fH2_QX5H6xOFP3IMSOIqCxpzUxMED0CX4l5Ag';
     const AUTH_STORAGE_KEY = 'rifaadca_auth_user';
-    const AUTH_ALLOWED_USER = 'admin';
-    const AUTH_ALLOWED_PASS = '123456';
+    const AUTH_ALLOWED_NAMES = new Set([
+        'GABRIEL ANGELINO REBELO MACHADO',
+        'RACHEL',
+        'SIMONE DA SILVA NASCIMENTO MACHADO',
+        'DANIEL DA SILVA MACHADO'
+    ]);
     // Backend que vai conversar com a API do Mercado Pago.
     // Em producao usa o mesmo dominio (/api). Local usa localhost:3000.
     const PAYMENTS_API_BASE = (
@@ -369,6 +379,14 @@
                     FOREIGN KEY (rifa_id) REFERENCES rifas(id)
                 )
             `);
+            await executeTursoQuery(`
+                CREATE TABLE IF NOT EXISTS usuarios (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nome TEXT NOT NULL UNIQUE,
+                    senha_hash TEXT NOT NULL,
+                    data_criacao TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
             console.log('✅ Banco inicializado!');
         } catch (err) {
             console.error('❌ Erro ao inicializar banco:', err.message);
@@ -438,19 +456,69 @@
         }
     }
 
-    function login() {
-        const usuario = (document.getElementById('login-usuario').value || '').trim();
+    function normalizeAuthName(nome) {
+        return String(nome || '').trim().toUpperCase().replace(/\s+/g, ' ');
+    }
+
+    async function hashSenha(senha) {
+        const data = new TextEncoder().encode(String(senha || ''));
+        const digest = await crypto.subtle.digest('SHA-256', data);
+        return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function login() {
+        const usuario = normalizeAuthName(document.getElementById('login-usuario').value);
         const senha = (document.getElementById('login-senha').value || '').trim();
-        if (usuario === AUTH_ALLOWED_USER && senha === AUTH_ALLOWED_PASS) {
+        if (!usuario || !senha) {
+            alert('Informe nome e senha.');
+            return;
+        }
+
+        try {
+            const senhaHash = await hashSenha(senha);
+            const { rows } = await executeTursoQuery(
+                'SELECT id FROM usuarios WHERE nome = ? AND senha_hash = ? LIMIT 1',
+                [usuario, senhaHash]
+            );
+            if (!rows.length) {
+                alert('Usuário ou senha inválidos.');
+                return;
+            }
             localStorage.setItem(AUTH_STORAGE_KEY, usuario);
             fecharModalLogin();
             atualizarAuthUI();
             showAlert('✅ Login realizado com sucesso.', 'success');
             const btnCriar = document.getElementById('btn-nav-criar');
             showTab('criar', btnCriar);
+        } catch (err) {
+            alert('Erro ao fazer login: ' + err.message);
+        }
+    }
+
+    async function cadastrarUsuario() {
+        const usuario = normalizeAuthName(document.getElementById('login-usuario').value);
+        const senha = (document.getElementById('login-senha').value || '').trim();
+        if (!usuario || !senha) {
+            alert('Informe nome e senha para cadastrar.');
             return;
         }
-        alert('Usuário ou senha inválidos.');
+        if (!AUTH_ALLOWED_NAMES.has(usuario)) {
+            alert('Este nome não está autorizado para cadastro.');
+            return;
+        }
+
+        try {
+            const senhaHash = await hashSenha(senha);
+            const { rows: existe } = await executeTursoQuery('SELECT id FROM usuarios WHERE nome = ? LIMIT 1', [usuario]);
+            if (existe.length) {
+                alert('Este usuário já está cadastrado. Faça login.');
+                return;
+            }
+            await executeTursoQuery('INSERT INTO usuarios (nome, senha_hash) VALUES (?, ?)', [usuario, senhaHash]);
+            alert('✅ Cadastro realizado. Agora clique em Entrar.');
+        } catch (err) {
+            alert('Erro ao cadastrar: ' + err.message);
+        }
     }
 
     function logout() {
