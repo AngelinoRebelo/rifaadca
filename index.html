@@ -967,6 +967,8 @@
                         <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
                             <span class="status-pill paid">Pagos ${grupo.pagos}</span>
                             <span class="status-pill pending">Pendentes ${grupo.pendentes}</span>
+                            <button type="button" class="btn" style="padding:0.4rem 0.75rem;font-size:0.82rem;background:#8f2d2d"
+                                onclick="event.stopPropagation(); excluirBlocoPagamento(${rifaId}, '${escapeForJsString(grupo.nomeRifa)}')">Excluir bloco</button>
                             <span class="accordion-toggle" id="accordion-toggle-${rifaId}">▼ Abrir</span>
                         </div>
                     </div>
@@ -1006,6 +1008,46 @@
         const open = body.classList.contains('open');
         body.classList.toggle('open', !open);
         label.textContent = open ? '▼ Abrir' : '▲ Fechar';
+    }
+
+    async function validarSenhaUsuarioLogado(senha) {
+        const usuario = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (!usuario) return false;
+        const senhaHash = await hashSenha(senha);
+        const { rows } = await executeTursoQuery(
+            'SELECT id FROM usuarios WHERE nome = ? AND senha_hash = ? LIMIT 1',
+            [usuario, senhaHash]
+        );
+        return rows.length > 0;
+    }
+
+    async function excluirBlocoPagamento(rifaId, nomeRifa) {
+        if (!isLoggedIn()) {
+            alert('Faça login para excluir bloco de pagamento.');
+            abrirModalLogin();
+            return;
+        }
+        if (!confirm(`Tem certeza que deseja excluir o bloco de pagamento da rifa "${nomeRifa}"?`)) {
+            return;
+        }
+
+        const senha = prompt('Confirme sua senha para excluir este bloco:');
+        if (!senha) return;
+
+        try {
+            const senhaValida = await validarSenhaUsuarioLogado(senha);
+            if (!senhaValida) {
+                alert('Senha inválida. Exclusão cancelada.');
+                return;
+            }
+
+            await executeTursoQuery('DELETE FROM participantes WHERE rifa_id = ?', [rifaId]);
+            await carregarPagamentos();
+            await carregarRifasAndamento();
+            alert('✅ Bloco de pagamento excluído com sucesso.');
+        } catch (err) {
+            alert('Erro ao excluir bloco: ' + err.message);
+        }
     }
 
     // Select de rifas para sortear
