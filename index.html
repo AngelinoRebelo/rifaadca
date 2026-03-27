@@ -135,7 +135,7 @@
             <button class="nav-btn active" id="btn-nav-criar" onclick="showTab('criar', this)">Criar Rifa</button>
             <button class="nav-btn" id="btn-nav-andamento" onclick="showTab('andamento', this)">Em Andamento</button>
             <button class="nav-btn" onclick="showTab('pagamento', this)">Pagamento da Cota</button>
-            <button class="nav-btn" onclick="showTab('sortear', this)">Sortear</button>
+            <button class="nav-btn" id="btn-nav-sortear" onclick="showTab('sortear', this)">Sortear</button>
             <button class="nav-btn" onclick="showTab('resultados', this)">Resultados</button>
         </nav>
         <div class="auth-box">
@@ -216,6 +216,13 @@
                 <div class="form-group">
                     <label class="form-label">Nome da pessoa</label>
                     <input type="text" class="form-input" id="modal-cota-nome" placeholder="Ex: Maria Oliveira" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Outras cotas (opcional)</label>
+                    <input type="text" class="form-input" id="modal-cotas-extra" placeholder="Ex: 12, 15, 18" />
+                    <div style="font-size:0.82rem;color:var(--text-light);margin-top:0.35rem">
+                        Separe por vírgula para reservar mais de uma cota ao mesmo participante.
+                    </div>
                 </div>
                 <div style="display:flex;gap:0.75rem;justify-content:flex-end;flex-wrap:wrap">
                     <button class="btn" type="button" id="btn-confirmar-cota" onclick="confirmarCota()">Confirmar</button>
@@ -411,8 +418,8 @@
 
     // Navegação
     function showTab(tabName, btn) {
-        if (tabName === 'criar' && !isLoggedIn()) {
-            showAlert('🔒 Faça login para criar rifas.', 'error', 'alert-container-andamento');
+        if ((tabName === 'criar' || tabName === 'sortear') && !isLoggedIn()) {
+            showAlert('🔒 Faça login para acessar esta aba.', 'error', 'alert-container-andamento');
             abrirModalLogin();
             return;
         }
@@ -457,16 +464,20 @@
         const logged = isLoggedIn();
         const user = localStorage.getItem(AUTH_STORAGE_KEY);
         const btnCriar = document.getElementById('btn-nav-criar');
+        const btnSortear = document.getElementById('btn-nav-sortear');
         const btnLogin = document.getElementById('btn-login-header');
         const btnLogout = document.getElementById('btn-logout-header');
         const label = document.getElementById('auth-user-label');
 
         btnCriar.style.display = logged ? 'inline-block' : 'none';
+        if (btnSortear) btnSortear.style.display = logged ? 'inline-block' : 'none';
         btnLogin.style.display = logged ? 'none' : 'inline-flex';
         btnLogout.style.display = logged ? 'inline-flex' : 'none';
         label.textContent = logged ? `Usuário: ${user}` : 'Não logado';
 
-        if (!logged && document.getElementById('tab-criar').classList.contains('active')) {
+        const tabCriarAtiva = document.getElementById('tab-criar').classList.contains('active');
+        const tabSortearAtiva = document.getElementById('tab-sortear').classList.contains('active');
+        if (!logged && (tabCriarAtiva || tabSortearAtiva)) {
             const btnAndamento = document.getElementById('btn-nav-andamento');
             showTab('andamento', btnAndamento);
         }
@@ -665,17 +676,20 @@
         return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     }
 
-    function abrirModalCota(rifaId, numeroCota, nomeRifa) {
+    function abrirModalCota(rifaId, numeroCota, nomeRifa, numCotas = 0) {
         const modal = document.getElementById('modal-cota');
         const descricao = document.getElementById('modal-cota-descricao');
         const inputNome = document.getElementById('modal-cota-nome');
+        const inputExtras = document.getElementById('modal-cotas-extra');
         const btn = document.getElementById('btn-confirmar-cota');
 
         modal.dataset.rifaId = String(rifaId);
         modal.dataset.numeroCota = String(numeroCota);
         modal.dataset.nomeRifa = String(nomeRifa);
+        modal.dataset.numCotas = String(numCotas || 0);
         descricao.textContent = `Rifa: ${nomeRifa} | Cota #${numeroCota}`;
         inputNome.value = '';
+        if (inputExtras) inputExtras.value = '';
         btn.disabled = false;
         btn.textContent = 'Confirmar';
         modal.style.display = 'flex';
@@ -720,7 +734,7 @@
                 const nomeComprador = escapeHtml(mapaCotasVendidas.get(n) || '');
                 cotasHtml += `<button type="button" class="cota-btn vendida" title="Cota vendida para ${nomeComprador}" disabled>${n}</button>`;
             } else {
-                cotasHtml += `<button type="button" class="cota-btn" title="Clique para reservar esta cota" onclick="abrirModalCota(${rifaId}, ${n}, '${escapeForJsString(nomeRifa)}')">${n}</button>`;
+                cotasHtml += `<button type="button" class="cota-btn" title="Clique para reservar esta cota" onclick="abrirModalCota(${rifaId}, ${n}, '${escapeForJsString(nomeRifa)}', ${numCotas})">${n}</button>`;
             }
         }
 
@@ -892,10 +906,13 @@
     async function confirmarCota() {
         const modal = document.getElementById('modal-cota');
         const inputNome = document.getElementById('modal-cota-nome');
+        const inputExtras = document.getElementById('modal-cotas-extra');
         const btn = document.getElementById('btn-confirmar-cota');
         const rifaId = parseInt(modal.dataset.rifaId || '0', 10);
         const numeroCota = parseInt(modal.dataset.numeroCota || '0', 10);
+        const numCotas = parseInt(modal.dataset.numCotas || '0', 10);
         const nome = (inputNome.value || '').trim();
+        const extrasTexto = (inputExtras?.value || '').trim();
 
         if (!rifaId || !numeroCota) return;
         if (!nome) {
@@ -907,24 +924,40 @@
         btn.textContent = 'Salvando...';
 
         try {
-            const { rows: conflitoRows } = await executeTursoQuery(
-                'SELECT COUNT(*) FROM participantes WHERE rifa_id = ? AND numero_cota = ?',
-                [rifaId, numeroCota]
+            const cotasSolicitadas = new Set([numeroCota]);
+            if (extrasTexto) {
+                const extras = extrasTexto.split(',').map(v => parseInt(v.trim(), 10)).filter(v => Number.isFinite(v));
+                for (const extra of extras) {
+                    if (numCotas > 0 && (extra < 1 || extra > numCotas)) {
+                        showAlert(`❌ A cota #${extra} está fora do intervalo permitido (1-${numCotas}).`, 'error', 'alert-container-andamento');
+                        return;
+                    }
+                    cotasSolicitadas.add(extra);
+                }
+            }
+
+            const { rows: ocupadasRows } = await executeTursoQuery(
+                'SELECT numero_cota FROM participantes WHERE rifa_id = ?',
+                [rifaId]
             );
-            const jaOcupada = Number(conflitoRows?.[0]?.[0] || 0) > 0;
-            if (jaOcupada) {
-                showAlert(`❌ A cota #${numeroCota} já foi reservada por outra pessoa.`, 'error', 'alert-container-andamento');
+            const ocupadas = new Set(ocupadasRows.map(r => Number(r[0])));
+            const conflitos = Array.from(cotasSolicitadas).filter(c => ocupadas.has(c));
+            if (conflitos.length) {
+                showAlert(`❌ As cotas ${conflitos.map(c => `#${c}`).join(', ')} já estão reservadas.`, 'error', 'alert-container-andamento');
                 await carregarRifasAndamento();
                 fecharModalCota();
                 return;
             }
 
-            await executeTursoQuery(
-                'INSERT INTO participantes (rifa_id, nome, numero_cota, pagamento_status) VALUES (?, ?, ?, ?)',
-                [rifaId, nome, numeroCota, 'pendente']
-            );
+            for (const cota of cotasSolicitadas) {
+                await executeTursoQuery(
+                    'INSERT INTO participantes (rifa_id, nome, numero_cota, pagamento_status) VALUES (?, ?, ?, ?)',
+                    [rifaId, nome, cota, 'pendente']
+                );
+            }
 
-            showAlert(`✅ Cota #${numeroCota} reservada para ${nome}.`, 'success', 'alert-container-andamento');
+            const cotasMsg = Array.from(cotasSolicitadas).sort((a, b) => a - b).map(c => `#${c}`).join(', ');
+            showAlert(`✅ Cotas ${cotasMsg} reservadas para ${nome}.`, 'success', 'alert-container-andamento');
             fecharModalCota();
             await carregarRifasAndamento();
             carregarRifasSortear();
