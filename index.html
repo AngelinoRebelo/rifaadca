@@ -967,8 +967,10 @@
                         <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
                             <span class="status-pill paid">Pagos ${grupo.pagos}</span>
                             <span class="status-pill pending">Pendentes ${grupo.pendentes}</span>
-                            <button type="button" class="btn" style="padding:0.4rem 0.75rem;font-size:0.82rem;background:#8f2d2d"
-                                onclick="event.stopPropagation(); excluirBlocoPagamento(${rifaId}, '${escapeForJsString(grupo.nomeRifa)}')">Excluir bloco</button>
+                            ${isLoggedIn()
+                                ? `<button type="button" class="btn" style="padding:0.4rem 0.75rem;font-size:0.82rem;background:#8f2d2d"
+                                    onclick="event.stopPropagation(); excluirBlocoPagamento(${rifaId}, '${escapeForJsString(grupo.nomeRifa)}')">Excluir bloco</button>`
+                                : ''}
                             <span class="accordion-toggle" id="accordion-toggle-${rifaId}">▼ Abrir</span>
                         </div>
                     </div>
@@ -984,6 +986,9 @@
                                     <div class="resultado-data">Cota #${item.numeroCota}</div>
                                     <span class="status-pill ${item.status === 'pago' ? 'paid' : 'pending'}">${item.status === 'pago' ? 'Pago' : 'Pendente'}</span>
                                 </div>
+                            </div>
+                            <div style="font-size:0.9rem;color:var(--text-light);margin-bottom:0.5rem">
+                                Número escolhido: <strong>#${item.numeroCota}</strong>
                             </div>
                             <div style="display:flex;justify-content:flex-end">
                                 ${item.status === 'pago'
@@ -1055,10 +1060,18 @@
         const select = document.getElementById('select-rifa-sortear');
         try {
             const { rows } = await executeTursoQuery(
-                "SELECT id, nome FROM rifas WHERE status = 'ativa' ORDER BY data_sorteio ASC"
+                `SELECT r.id, r.nome
+                 FROM rifas r
+                 WHERE r.status = 'ativa'
+                 AND EXISTS (
+                    SELECT 1 FROM participantes p
+                    WHERE p.rifa_id = r.id
+                    AND COALESCE(p.pagamento_status, 'pendente') = 'pago'
+                 )
+                 ORDER BY r.data_sorteio ASC`
             );
             if (!rows.length) {
-                select.innerHTML = '<option value="">Nenhuma rifa disponível</option>';
+                select.innerHTML = '<option value="">Nenhuma rifa com pagamentos confirmados</option>';
                 return;
             }
             select.innerHTML = '<option value="">Selecione uma rifa...</option>' +
@@ -1083,11 +1096,15 @@
 
         try {
             const { rows } = await executeTursoQuery(
-                'SELECT id, nome, numero_cota FROM participantes WHERE rifa_id = ?', [rifaId]
+                `SELECT id, nome, numero_cota
+                 FROM participantes
+                 WHERE rifa_id = ?
+                 AND COALESCE(pagamento_status, 'pendente') = 'pago'`,
+                [rifaId]
             );
 
             if (!rows.length) {
-                alert('Esta rifa não possui participantes!');
+                alert('Esta rifa não possui participantes com pagamento confirmado!');
                 btn.disabled = false;
                 btn.innerHTML = 'Realizar Sorteio';
                 return;
