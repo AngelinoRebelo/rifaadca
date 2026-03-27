@@ -21,6 +21,10 @@
         .nav-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-weight: 500; transition: all 0.3s ease; font-size: 0.95rem; }
         .nav-btn:hover { background: rgba(255,255,255,0.2); transform: translateY(-2px); }
         .nav-btn.active { background: var(--accent); border-color: var(--accent); box-shadow: 0 4px 12px rgba(212,175,55,0.3); }
+        .auth-box { display:flex; align-items:center; gap:0.5rem; margin-left:1rem; }
+        .auth-btn { background: rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.25); border-radius:999px; padding:0.45rem 0.75rem; font-size:0.82rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:0.35rem; }
+        .auth-btn:hover { background: rgba(255,255,255,0.22); }
+        .auth-user { color: rgba(255,255,255,0.9); font-size:0.82rem; }
         .container { max-width: 1200px; margin: 0 auto; padding: 3rem 2rem; }
         .tab-content { display: none; animation: fadeIn 0.4s ease; }
         .tab-content.active { display: block; }
@@ -104,12 +108,17 @@
             <span>Rifas da Igreja</span>
         </div>
         <nav class="nav">
-            <button class="nav-btn active" onclick="showTab('criar', this)">Criar Rifa</button>
-            <button class="nav-btn" onclick="showTab('andamento', this)">Em Andamento</button>
+            <button class="nav-btn active" id="btn-nav-criar" onclick="showTab('criar', this)">Criar Rifa</button>
+            <button class="nav-btn" id="btn-nav-andamento" onclick="showTab('andamento', this)">Em Andamento</button>
             <button class="nav-btn" onclick="showTab('pagamento', this)">Pagamento da Cota</button>
             <button class="nav-btn" onclick="showTab('sortear', this)">Sortear</button>
             <button class="nav-btn" onclick="showTab('resultados', this)">Resultados</button>
         </nav>
+        <div class="auth-box">
+            <span class="auth-user" id="auth-user-label">Não logado</span>
+            <button class="auth-btn" id="btn-login-header" onclick="abrirModalLogin()">🔐 Login</button>
+            <button class="auth-btn" id="btn-logout-header" onclick="logout()" style="display:none">Sair</button>
+        </div>
     </div>
 </header>
 
@@ -144,6 +153,26 @@
                 </div>
                 <button type="submit" class="btn">Criar Rifa</button>
             </form>
+        </div>
+    </div>
+
+    <div id="modal-login" class="modal-backdrop">
+        <div class="modal-card" style="max-width:420px">
+            <h3 style="color:var(--primary);font-family:'Playfair Display',serif;margin-bottom:0.5rem">🔐 Login</h3>
+            <p style="color:var(--text-light);margin-bottom:1rem">Apenas usuários logados podem criar rifas.</p>
+            <div class="form-group" style="margin-bottom:0.75rem">
+                <label class="form-label">Usuário</label>
+                <input type="text" id="login-usuario" class="form-input" placeholder="Digite seu usuário" />
+            </div>
+            <div class="form-group" style="margin-bottom:0.75rem">
+                <label class="form-label">Senha</label>
+                <input type="password" id="login-senha" class="form-input" placeholder="Digite sua senha" />
+            </div>
+            <div style="font-size:0.8rem;color:var(--text-light);margin-bottom:1rem">Credenciais padrão: <strong>admin</strong> / <strong>123456</strong></div>
+            <div style="display:flex;gap:0.75rem;justify-content:flex-end;flex-wrap:wrap">
+                <button class="btn btn-accent" type="button" onclick="login()">Entrar</button>
+                <button class="btn" type="button" style="background:transparent;color:var(--primary);box-shadow:none;border:2px solid var(--border)" onclick="fecharModalLogin()">Cancelar</button>
+            </div>
         </div>
     </div>
 
@@ -234,6 +263,9 @@
     // ✅ URL CORRIGIDA — usa HTTPS + /v2/pipeline (libsql:// não funciona no browser)
     const TURSO_URL = 'https://database-cordovan-feather-vercel-icfg-ni4jeabacdgrdfgmcjlnprsu.aws-us-east-1.turso.io/v2/pipeline';
     const TURSO_TOKEN = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NzQ1MzQ0NjEsImlkIjoiMDE5ZDJhN2YtMDYwMS03Mzg2LTkzYjgtN2Y2NzI3NTgwNWM4IiwicmlkIjoiZDYyYTI2M2YtMjQzZi00ODU5LWIwMjQtMWUzZWRkZmY3ZjlkIn0.R7V76HhsQFC1vAdFH8Cyc6VOMK4gLvU_6Vy-xt-J6lRZFUo26fH2_QX5H6xOFP3IMSOIqCxpzUxMED0CX4l5Ag';
+    const AUTH_STORAGE_KEY = 'rifaadca_auth_user';
+    const AUTH_ALLOWED_USER = 'admin';
+    const AUTH_ALLOWED_PASS = '123456';
     // Backend que vai conversar com a API do Mercado Pago.
     // Em producao usa o mesmo dominio (/api). Local usa localhost:3000.
     const PAYMENTS_API_BASE = (
@@ -345,10 +377,15 @@
 
     // Navegação
     function showTab(tabName, btn) {
+        if (tabName === 'criar' && !isLoggedIn()) {
+            showAlert('🔒 Faça login para criar rifas.', 'error', 'alert-container-andamento');
+            abrirModalLogin();
+            return;
+        }
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
         document.getElementById(`tab-${tabName}`).classList.add('active');
-        btn.classList.add('active');
+        if (btn) btn.classList.add('active');
 
         if (tabName === 'andamento') carregarRifasAndamento();
         else if (tabName === 'pagamento') carregarPagamentos();
@@ -366,9 +403,69 @@
         setTimeout(() => { c.innerHTML = ''; }, 5000);
     }
 
+    function isLoggedIn() {
+        return !!localStorage.getItem(AUTH_STORAGE_KEY);
+    }
+
+    function abrirModalLogin() {
+        const m = document.getElementById('modal-login');
+        m.style.display = 'flex';
+        const inputUser = document.getElementById('login-usuario');
+        if (inputUser) inputUser.focus();
+    }
+
+    function fecharModalLogin() {
+        const m = document.getElementById('modal-login');
+        m.style.display = 'none';
+    }
+
+    function atualizarAuthUI() {
+        const logged = isLoggedIn();
+        const user = localStorage.getItem(AUTH_STORAGE_KEY);
+        const btnCriar = document.getElementById('btn-nav-criar');
+        const btnLogin = document.getElementById('btn-login-header');
+        const btnLogout = document.getElementById('btn-logout-header');
+        const label = document.getElementById('auth-user-label');
+
+        btnCriar.style.display = logged ? 'inline-block' : 'none';
+        btnLogin.style.display = logged ? 'none' : 'inline-flex';
+        btnLogout.style.display = logged ? 'inline-flex' : 'none';
+        label.textContent = logged ? `Usuário: ${user}` : 'Não logado';
+
+        if (!logged && document.getElementById('tab-criar').classList.contains('active')) {
+            const btnAndamento = document.getElementById('btn-nav-andamento');
+            showTab('andamento', btnAndamento);
+        }
+    }
+
+    function login() {
+        const usuario = (document.getElementById('login-usuario').value || '').trim();
+        const senha = (document.getElementById('login-senha').value || '').trim();
+        if (usuario === AUTH_ALLOWED_USER && senha === AUTH_ALLOWED_PASS) {
+            localStorage.setItem(AUTH_STORAGE_KEY, usuario);
+            fecharModalLogin();
+            atualizarAuthUI();
+            showAlert('✅ Login realizado com sucesso.', 'success');
+            const btnCriar = document.getElementById('btn-nav-criar');
+            showTab('criar', btnCriar);
+            return;
+        }
+        alert('Usuário ou senha inválidos.');
+    }
+
+    function logout() {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        atualizarAuthUI();
+        alert('Você saiu da sessão.');
+    }
+
     // Criar rifa
     document.getElementById('form-criar-rifa').addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (!isLoggedIn()) {
+            abrirModalLogin();
+            return;
+        }
         const nome      = document.getElementById('nome-rifa').value.trim();
         const descricao = document.getElementById('descricao-rifa').value.trim();
         const numCotas  = parseInt(document.getElementById('num-cotas').value);
@@ -953,6 +1050,7 @@
 
     // Boot
     window.addEventListener('DOMContentLoaded', async () => {
+        atualizarAuthUI();
         await initDatabase();
         document.getElementById('data-sorteio').min = new Date().toISOString().split('T')[0];
     });
