@@ -53,11 +53,18 @@
         .progress-bar { background: var(--border); height: 8px; border-radius: 4px; overflow: hidden; margin: 1rem 0; }
         .progress-fill { background: linear-gradient(90deg, var(--primary), var(--primary-light)); height: 100%; transition: width 0.3s ease; }
         .sorteio-section { text-align: center; padding: 3rem 0; }
-        .sorteador { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); border-radius: 20px; padding: 3rem; margin: 2rem auto; max-width: 600px; box-shadow: 0 10px 40px var(--shadow); }
-        .vencedor-display { background: white; border-radius: 16px; padding: 2rem; margin: 2rem 0; min-height: 150px; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; color: var(--primary); font-family: 'Playfair Display', serif; }
-        .vencedor-display.sorteando { animation: sorteioShuffle 0.12s linear infinite; color: var(--primary-light); }
+        .sorteador { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); border-radius: 20px; padding: 3rem; margin: 2rem auto; max-width: 600px; box-shadow: 0 10px 40px var(--shadow); position: relative; overflow: hidden; }
+        .sorteador::after { content: ''; position: absolute; top: -120%; left: -40%; width: 60%; height: 300%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent); transform: rotate(18deg); opacity: 0; pointer-events: none; }
+        .sorteador.sorting::after { opacity: 1; animation: shineSweep 1.2s linear infinite; }
+        .vencedor-display { background: white; border-radius: 16px; padding: 2rem; margin: 2rem 0; min-height: 150px; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; color: var(--primary); font-family: 'Playfair Display', serif; transition: transform 0.2s ease, opacity 0.2s ease; }
+        .vencedor-display.sorteando { color: var(--primary-light); box-shadow: inset 0 0 0 3px rgba(44,95,45,0.12); }
+        .vencedor-display.cycle { transform: translateY(-2px) scale(1.01); opacity: 0.94; }
+        .vencedor-display.reveal { animation: vencedorReveal 0.65s ease; }
+        .sorteio-status { color: rgba(255,255,255,0.88); font-size: 0.92rem; margin-top: -0.8rem; min-height: 1.2rem; }
         @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
         @keyframes sorteioShuffle { 0% { transform: translateY(0); opacity: 0.85; } 50% { transform: translateY(-2px); opacity: 1; } 100% { transform: translateY(0); opacity: 0.85; } }
+        @keyframes shineSweep { from { transform: translateX(-140px) rotate(18deg); } to { transform: translateX(720px) rotate(18deg); } }
+        @keyframes vencedorReveal { 0% { transform: scale(0.92); opacity: 0; } 60% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
         .resultado-card { background: var(--surface); border-radius: 12px; padding: 1.5rem; border-left: 4px solid var(--accent); margin-bottom: 1rem; box-shadow: 0 2px 8px var(--shadow); }
         .resultado-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem; }
         .resultado-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: var(--primary); }
@@ -246,6 +253,7 @@
             <div class="sorteador">
                 <h2 style="color:white;margin-bottom:1rem;font-family:'Playfair Display',serif">🎉 Vencedor!</h2>
                 <div class="vencedor-display" id="vencedor-nome"></div>
+                <div class="sorteio-status" id="sorteio-status-text"></div>
                 <p style="color:rgba(255,255,255,0.9);margin-top:1rem">Parabéns ao ganhador!</p>
             </div>
         </div>
@@ -1090,6 +1098,8 @@
         const btn = document.getElementById('btn-sortear');
         const display = document.getElementById('vencedor-nome');
         const resultadoBox = document.getElementById('sorteio-resultado');
+        const statusText = document.getElementById('sorteio-status-text');
+        const sorteadorBox = document.querySelector('#sorteio-resultado .sorteador');
         btn.disabled = true;
         btn.innerHTML = '<span class="loading"></span> Sorteando...';
         resultadoBox.style.display = 'block';
@@ -1110,16 +1120,23 @@
                 return;
             }
 
-            // Animação: mostra vários participantes reais antes do resultado final.
+            // Animação interativa com desaceleração progressiva.
+            statusText.textContent = `🎰 Preparando roleta com ${rows.length} participante(s)...`;
+            sorteadorBox.classList.add('sorting');
             display.classList.add('sorteando');
-            const animacaoMs = 2400;
-            const trocaMs = 120;
-            const ciclos = Math.floor(animacaoMs / trocaMs);
-            for (let i = 0; i < ciclos; i++) {
+            const totalCiclos = 26;
+            for (let i = 0; i < totalCiclos; i++) {
                 const candidato = rows[Math.floor(Math.random() * rows.length)];
                 const [, nomeCandidato, numeroCandidato] = candidato;
                 display.textContent = `🎟️ ${nomeCandidato} — Cota #${numeroCandidato}`;
-                await new Promise(resolve => setTimeout(resolve, trocaMs));
+                display.classList.add('cycle');
+                const progresso = i / totalCiclos;
+                const pausa = Math.floor(60 + (progresso * progresso * 210)); // acelera no inicio e desacelera no fim
+                statusText.textContent = progresso < 0.75
+                    ? '🎲 Misturando nomes...'
+                    : '⏳ Quase lá... escolhendo vencedor final...';
+                await new Promise(resolve => setTimeout(resolve, pausa));
+                display.classList.remove('cycle');
             }
 
             const vencedor = rows[Math.floor(Math.random() * rows.length)];
@@ -1133,15 +1150,22 @@
                 "UPDATE rifas SET status = 'sorteada' WHERE id = ?", [rifaId]
             );
 
+            sorteadorBox.classList.remove('sorting');
             display.classList.remove('sorteando');
             display.textContent = `🏆 ${nomeVencedor} — Cota #${numeroCota}`;
+            display.classList.remove('reveal');
+            void display.offsetWidth;
+            display.classList.add('reveal');
+            statusText.textContent = '✅ Sorteio concluído com sucesso!';
             display.style.animation = 'none';
             setTimeout(() => { display.style.animation = 'pulse 0.5s ease'; }, 10);
 
             setTimeout(carregarRifasSortear, 2000);
 
         } catch (err) {
+            sorteadorBox.classList.remove('sorting');
             display.classList.remove('sorteando');
+            statusText.textContent = '';
             alert('Erro ao sortear: ' + err.message);
             console.error(err);
         }
