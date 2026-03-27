@@ -1,16 +1,36 @@
 import crypto from 'node:crypto';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 
-const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || '';
-const TURSO_URL = process.env.TURSO_URL || '';
-const TURSO_TOKEN = process.env.TURSO_TOKEN || '';
+const MP_ACCESS_TOKEN =
+  process.env.MP_ACCESS_TOKEN ||
+  process.env.MERCADOPAGO_ACCESS_TOKEN ||
+  process.env.MP_TOKEN ||
+  '';
+
+function normalizeTursoPipelineUrl(rawUrl) {
+  if (!rawUrl) return '';
+  if (rawUrl.startsWith('https://')) {
+    return rawUrl.includes('/v2/pipeline') ? rawUrl : `${rawUrl.replace(/\/$/, '')}/v2/pipeline`;
+  }
+  if (rawUrl.startsWith('libsql://')) {
+    return `${rawUrl.replace('libsql://', 'https://').replace(/\/$/, '')}/v2/pipeline`;
+  }
+  return rawUrl;
+}
+
+const TURSO_URL = normalizeTursoPipelineUrl(
+  process.env.TURSO_URL || process.env.TURSO_DATABASE_URL || ''
+);
+const TURSO_TOKEN = process.env.TURSO_TOKEN || process.env.TURSO_AUTH_TOKEN || '';
 
 const mpClient = new MercadoPagoConfig({ accessToken: MP_ACCESS_TOKEN });
 const mpPayment = new Payment(mpClient);
 
 export function ensureEnv() {
   if (!MP_ACCESS_TOKEN || !TURSO_URL || !TURSO_TOKEN) {
-    throw new Error('Variaveis ausentes: MP_ACCESS_TOKEN, TURSO_URL e TURSO_TOKEN.');
+    throw new Error(
+      'Variaveis ausentes. Configure: MP_ACCESS_TOKEN (ou MERCADOPAGO_ACCESS_TOKEN) e TURSO_URL+TURSO_TOKEN (ou TURSO_DATABASE_URL+TURSO_AUTH_TOKEN).'
+    );
   }
 }
 
