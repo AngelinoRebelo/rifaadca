@@ -45,6 +45,11 @@
         .btn-accent:hover { background: #c29d2e; }
         .rifas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 2rem; }
         .rifa-card { background: var(--surface); border-radius: 12px; padding: 1.5rem; border: 2px solid var(--border); transition: all 0.3s ease; position: relative; overflow: hidden; }
+        .rifa-card-img { width: 100%; max-height: 220px; object-fit: cover; border-radius: 10px; margin-bottom: 1rem; border: 1px solid var(--border); background: var(--bg); }
+        .form-file-hint { font-size: 0.85rem; color: var(--text-light); margin-top: 0.35rem; }
+        .imagem-preview-wrap { margin-top: 0.75rem; display: none; }
+        .imagem-preview-wrap.visible { display: block; }
+        .imagem-preview { max-width: 100%; max-height: 180px; border-radius: 10px; border: 1px solid var(--border); object-fit: contain; background: var(--bg); }
         .rifa-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--primary), var(--accent)); }
         .rifa-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px var(--shadow); border-color: var(--primary); }
         .rifa-title { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; color: var(--primary); margin-bottom: 0.75rem; }
@@ -175,6 +180,18 @@
                 <div class="form-group">
                     <label class="form-label">Data do Sorteio</label>
                     <input type="date" class="form-input" id="data-sorteio" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Imagem da rifa (opcional)</label>
+                    <input type="file" class="form-input" id="imagem-rifa" accept="image/jpeg,image/png,image/webp,image/gif">
+                    <p class="form-file-hint">JPG, PNG, WebP ou GIF. A imagem é redimensionada para caber no armazenamento.</p>
+                    <div id="imagem-rifa-preview-wrap" class="imagem-preview-wrap">
+                        <img id="imagem-rifa-preview" class="imagem-preview" alt="Pré-visualização">
+                        <button type="button" class="btn" style="margin-top:0.5rem;padding:0.5rem 1rem;font-size:0.9rem" id="btn-remover-imagem-rifa">Remover imagem</button>
+                    </div>
+                    <label class="form-label" style="margin-top:1rem">Ou link da imagem (opcional)</label>
+                    <input type="url" class="form-input" id="imagem-rifa-url" placeholder="https://exemplo.com/foto.jpg" inputmode="url">
+                    <p class="form-file-hint">Se você enviar um arquivo acima, ele tem prioridade sobre o link.</p>
                 </div>
                 <button type="submit" class="btn">Criar Rifa</button>
             </form>
@@ -376,9 +393,11 @@
                     valor_cota REAL NOT NULL,
                     data_sorteio TEXT NOT NULL,
                     status TEXT DEFAULT 'ativa',
-                    data_criacao TEXT DEFAULT CURRENT_TIMESTAMP
+                    data_criacao TEXT DEFAULT CURRENT_TIMESTAMP,
+                    imagem TEXT
                 )
             `);
+            try { await executeTursoQuery(`ALTER TABLE rifas ADD COLUMN imagem TEXT`); } catch (e) {}
             await executeTursoQuery(`
                 CREATE TABLE IF NOT EXISTS participantes (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -560,6 +579,31 @@
         alert('Você saiu da sessão.');
     }
 
+    const inputImagemRifa = document.getElementById('imagem-rifa');
+    const wrapPreviewImagem = document.getElementById('imagem-rifa-preview-wrap');
+    const imgPreviewImagem = document.getElementById('imagem-rifa-preview');
+    const btnRemoverImagemRifa = document.getElementById('btn-remover-imagem-rifa');
+
+    if (inputImagemRifa && wrapPreviewImagem && imgPreviewImagem) {
+        inputImagemRifa.addEventListener('change', function () {
+            if (this.dataset.previewUrl) {
+                URL.revokeObjectURL(this.dataset.previewUrl);
+                delete this.dataset.previewUrl;
+            }
+            if (this.files && this.files[0]) {
+                const u = URL.createObjectURL(this.files[0]);
+                this.dataset.previewUrl = u;
+                imgPreviewImagem.src = u;
+                wrapPreviewImagem.classList.add('visible');
+            } else {
+                limparPreviewImagemRifa();
+            }
+        });
+    }
+    if (btnRemoverImagemRifa) {
+        btnRemoverImagemRifa.addEventListener('click', () => limparPreviewImagemRifa());
+    }
+
     // Criar rifa
     document.getElementById('form-criar-rifa').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -572,19 +616,40 @@
         const numCotas  = parseInt(document.getElementById('num-cotas').value);
         const valorCota = parseFloat(document.getElementById('valor-cota').value);
         const dataSorteio = document.getElementById('data-sorteio').value;
+        const urlFieldImagem = document.getElementById('imagem-rifa-url');
+        const urlImagem = urlFieldImagem ? String(urlFieldImagem.value || '').trim() : '';
 
         const btn = e.target.querySelector('button[type=submit]');
         btn.disabled = true;
         btn.textContent = 'Criando...';
 
         try {
-            const res = await executeTursoQuery(
-                `INSERT INTO rifas (nome, descricao, num_cotas, valor_cota, data_sorteio) VALUES (?, ?, ?, ?, ?)`,
-                [nome, descricao || null, numCotas, valorCota, dataSorteio]
+            let imagemValor = null;
+            const fileEl = document.getElementById('imagem-rifa');
+            if (fileEl && fileEl.files && fileEl.files[0]) {
+                const f = fileEl.files[0];
+                if (f.size > 5 * 1024 * 1024) {
+                    throw new Error('Imagem muito grande (máx. 5 MB antes da compactação).');
+                }
+                imagemValor = await compressImageFileToDataUrl(f);
+                if (imagemValor.length > 1_800_000) {
+                    throw new Error('Imagem ainda grande demais após compactação; use outra foto ou apenas o link.');
+                }
+            } else if (urlImagem) {
+                const ok = imgSrcParaRifa(urlImagem);
+                if (!ok) throw new Error('Link da imagem inválido. Use uma URL que comece com http:// ou https://');
+                imagemValor = ok;
+            }
+
+            await executeTursoQuery(
+                `INSERT INTO rifas (nome, descricao, num_cotas, valor_cota, data_sorteio, imagem) VALUES (?, ?, ?, ?, ?, ?)`,
+                [nome, descricao || null, numCotas, valorCota, dataSorteio, imagemValor]
             );
 
             showAlert('✅ Rifa criada com sucesso!', 'success');
             e.target.reset();
+            limparPreviewImagemRifa();
+            if (urlFieldImagem) urlFieldImagem.value = '';
 
         } catch (err) {
             showAlert('❌ Erro ao criar rifa: ' + err.message, 'error');
@@ -601,7 +666,8 @@
         container.innerHTML = '<p style="text-align:center;color:var(--text-light)">Carregando...</p>';
         try {
             const { rows } = await executeTursoQuery(
-                "SELECT * FROM rifas WHERE status = 'ativa' ORDER BY data_criacao DESC"
+                `SELECT id, nome, descricao, num_cotas, valor_cota, data_sorteio, imagem
+                 FROM rifas WHERE status = 'ativa' ORDER BY data_criacao DESC`
             );
 
             if (!rows.length) {
@@ -615,19 +681,24 @@
             }
 
             let html = '';
-            for (const [id, nome, descricao, numCotas, valorCota, dataSorteio] of rows) {
+            for (const [id, nome, descricao, numCotas, valorCota, dataSorteio, imagem] of rows) {
                 const { rows: participanteRows } = await executeTursoQuery(
                     'SELECT numero_cota, nome FROM participantes WHERE rifa_id = ? ORDER BY numero_cota ASC', [id]
                 );
                 const participantes = participanteRows.length;
                 const pct = Math.round((participantes / numCotas) * 100);
+                const imgSrcOk = imgSrcParaRifa(imagem);
+                const imgHtml = imgSrcOk
+                    ? `<img class="rifa-card-img" src="${escapeHtmlAttr(imgSrcOk)}" alt="">`
+                    : '';
 
                 html += `
                     <div class="rifa-card" id="rifa-card-${id}">
                         <div class="rifa-layout">
                             <div>
-                                <h3 class="rifa-title">${nome}</h3>
-                                ${descricao ? `<p style="color:var(--text-light);margin-bottom:1rem">${descricao}</p>` : ''}
+                                ${imgHtml}
+                                <h3 class="rifa-title">${escapeHtml(nome)}</h3>
+                                ${descricao ? `<p style="color:var(--text-light);margin-bottom:1rem">${escapeHtml(descricao)}</p>` : ''}
                                 <div class="rifa-info">
                                     <div class="rifa-info-item">
                                         <span class="rifa-info-label">Total de Cotas</span>
@@ -684,6 +755,63 @@
 
     function escapeForJsString(str) {
         return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    }
+
+    function escapeHtmlAttr(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;');
+    }
+
+    function imgSrcParaRifa(src) {
+        if (!src || typeof src !== 'string') return null;
+        const s = src.trim();
+        if (s.startsWith('data:image/')) return s;
+        if (/^https?:\/\//i.test(s)) return s;
+        return null;
+    }
+
+    async function compressImageFileToDataUrl(file, maxW = 960, quality = 0.82) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            const url = URL.createObjectURL(file);
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                let w = img.width;
+                let h = img.height;
+                if (w > maxW) {
+                    h = Math.round((h * maxW) / w);
+                    w = maxW;
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                reject(new Error('Não foi possível ler a imagem.'));
+            };
+            img.src = url;
+        });
+    }
+
+    function limparPreviewImagemRifa() {
+        const fi = document.getElementById('imagem-rifa');
+        const wrap = document.getElementById('imagem-rifa-preview-wrap');
+        const prev = document.getElementById('imagem-rifa-preview');
+        if (fi) {
+            if (fi.dataset.previewUrl) {
+                URL.revokeObjectURL(fi.dataset.previewUrl);
+                delete fi.dataset.previewUrl;
+            }
+            fi.value = '';
+        }
+        if (wrap) wrap.classList.remove('visible');
+        if (prev) prev.removeAttribute('src');
     }
 
     async function abrirModalCota(rifaId, numeroCota, nomeRifa, numCotas = 0) {
