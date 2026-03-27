@@ -1245,9 +1245,23 @@
                                     <span class="status-pill pending">Pendentes ${qtdPendentes}</span>
                                 </div>
                             </div>
-                            <div style="font-size:0.9rem;color:var(--text-light);margin-bottom:0.5rem">
-                                Cotas escolhidas:
-                                <strong>${cotasOrdenadas.map(c => `#${c.numeroCota}`).join(', ')}</strong>
+                            <div style="font-size:0.9rem;color:var(--text-light);margin-bottom:0.4rem">Cotas</div>
+                            <div style="margin-bottom:0.65rem">
+                                ${cotasOrdenadas.map(c => {
+                                    const isPago = c.status === 'pago';
+                                    const btnBaixa = !isPago && isLoggedIn()
+                                        ? `<button type="button" class="btn" style="padding:0.3rem 0.65rem;font-size:0.78rem;background:var(--primary)"
+                                            onclick="darBaixaPagamentoCota(${c.participanteId}, '${escapeForJsString(grupo.nomeRifa)}', ${c.numeroCota})">Dar baixa</button>`
+                                        : '';
+                                    return `
+                                <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;flex-wrap:wrap;padding:0.4rem 0;border-bottom:1px solid var(--border)">
+                                    <span>
+                                        <strong>#${c.numeroCota}</strong>
+                                        <span class="status-pill ${isPago ? 'paid' : 'pending'}">${isPago ? 'Pago' : 'Pendente'}</span>
+                                    </span>
+                                    ${btnBaixa}
+                                </div>`;
+                                }).join('')}
                             </div>
                             <div style="font-size:0.9rem;color:var(--text-light);margin-bottom:0.7rem">
                                 Total pendente:
@@ -1279,6 +1293,38 @@
         const open = body.classList.contains('open');
         body.classList.toggle('open', !open);
         label.textContent = open ? '▼ Abrir' : '▲ Fechar';
+    }
+
+    async function darBaixaPagamentoCota(participanteId, nomeRifa, numeroCota) {
+        if (!isLoggedIn()) {
+            alert('Faça login para registrar baixa de pagamento.');
+            abrirModalLogin();
+            return;
+        }
+        if (!confirm(`Registrar pagamento recebido (dinheiro, transferência manual, etc.) da cota #${numeroCota} na rifa "${nomeRifa}"?`)) {
+            return;
+        }
+        const senha = prompt('Digite sua senha para confirmar a baixa:');
+        if (!senha) return;
+
+        try {
+            const senhaValida = await validarSenhaUsuarioLogado(senha);
+            if (!senhaValida) {
+                alert('Senha inválida. Operação cancelada.');
+                return;
+            }
+
+            await executeTursoQuery(
+                `UPDATE participantes SET pagamento_status = 'pago', mp_payment_id = NULL WHERE id = ?`,
+                [participanteId]
+            );
+            alert('✅ Baixa registrada. Cota marcada como paga.');
+            await carregarPagamentos();
+            await carregarRifasAndamento();
+            await carregarRifasSortear();
+        } catch (err) {
+            alert('Erro ao registrar baixa: ' + err.message);
+        }
     }
 
     async function validarSenhaUsuarioLogado(senha) {
