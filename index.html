@@ -998,15 +998,28 @@
                     grupos.set(rifaId, {
                         nomeRifa,
                         valorCota,
-                        itens: [],
+                        participantesMap: new Map(),
                         pendentes: 0,
                         pagos: 0
                     });
                 }
+                const grupo = grupos.get(rifaId);
                 const status = String(pagamentoStatus || 'pendente').toLowerCase();
-                if (status === 'pago') grupos.get(rifaId).pagos += 1;
-                else grupos.get(rifaId).pendentes += 1;
-                grupos.get(rifaId).itens.push({ participanteId, nomeParticipante, numeroCota, status });
+                if (status === 'pago') grupo.pagos += 1;
+                else grupo.pendentes += 1;
+
+                const chaveParticipante = String(nomeParticipante || '').trim().toUpperCase();
+                if (!grupo.participantesMap.has(chaveParticipante)) {
+                    grupo.participantesMap.set(chaveParticipante, {
+                        nomeParticipante: String(nomeParticipante || '').trim(),
+                        cotas: []
+                    });
+                }
+                grupo.participantesMap.get(chaveParticipante).cotas.push({
+                    participanteId,
+                    numeroCota,
+                    status
+                });
             }
 
             container.innerHTML = Array.from(grupos.entries()).map(([rifaId, grupo]) => `
@@ -1032,26 +1045,33 @@
                         <div style="font-size:0.9rem;color:var(--text-light);margin-bottom:0.75rem">
                             Valor por cota: <strong>R$ ${parseFloat(grupo.valorCota).toFixed(2)}</strong>
                         </div>
-                        ${grupo.itens.map(item => `
-                        <div class="resultado-card" style="margin-bottom:0.75rem;opacity:${item.status === 'pago' ? '0.85' : '1'}">
+                        ${Array.from(grupo.participantesMap.values()).map(participante => {
+                            const cotasOrdenadas = participante.cotas.sort((a, b) => a.numeroCota - b.numeroCota);
+                            const qtdPagas = cotasOrdenadas.filter(c => c.status === 'pago').length;
+                            const qtdPendentes = cotasOrdenadas.filter(c => c.status !== 'pago').length;
+                            return `
+                        <div class="resultado-card" style="margin-bottom:0.75rem;opacity:${qtdPendentes === 0 ? '0.85' : '1'}">
                             <div class="resultado-header">
-                                <div class="resultado-title" style="font-size:1.05rem">${escapeHtml(item.nomeParticipante)}</div>
+                                <div class="resultado-title" style="font-size:1.05rem">${escapeHtml(participante.nomeParticipante)}</div>
                                 <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
-                                    <div class="resultado-data">Cota #${item.numeroCota}</div>
-                                    <span class="status-pill ${item.status === 'pago' ? 'paid' : 'pending'}">${item.status === 'pago' ? 'Pago' : 'Pendente'}</span>
+                                    <span class="status-pill paid">Pagas ${qtdPagas}</span>
+                                    <span class="status-pill pending">Pendentes ${qtdPendentes}</span>
                                 </div>
                             </div>
                             <div style="font-size:0.9rem;color:var(--text-light);margin-bottom:0.5rem">
-                                Número escolhido: <strong>#${item.numeroCota}</strong>
+                                Cotas escolhidas:
+                                <strong>${cotasOrdenadas.map(c => `#${c.numeroCota}`).join(', ')}</strong>
                             </div>
-                            <div style="display:flex;justify-content:flex-end">
-                                ${item.status === 'pago'
-                                    ? '<span style="font-weight:700;color:var(--primary)">Pagamento aprovado</span>'
-                                    : `<button type="button" class="btn btn-accent" style="padding:0.45rem 0.85rem;font-size:0.9rem"
-                                        onclick="pagarComMercadoPago(${item.participanteId}, ${parseFloat(grupo.valorCota).toFixed(2)}, 'Rifa ${escapeForJsString(grupo.nomeRifa)} - Cota #${item.numeroCota}')">Pagar</button>`}
+                            <div style="display:flex;justify-content:flex-end;gap:0.5rem;flex-wrap:wrap">
+                                ${cotasOrdenadas.map(c => c.status === 'pago'
+                                    ? `<span class="status-pill paid">#${c.numeroCota} pago</span>`
+                                    : `<button type="button" class="btn btn-accent" style="padding:0.45rem 0.85rem;font-size:0.85rem"
+                                        onclick="pagarComMercadoPago(${c.participanteId}, ${parseFloat(grupo.valorCota).toFixed(2)}, 'Rifa ${escapeForJsString(grupo.nomeRifa)} - Cota #${c.numeroCota}')">Pagar #${c.numeroCota}</button>`
+                                ).join('')}
                             </div>
                         </div>
-                        `).join('')}
+                        `;
+                        }).join('')}
                     </div>
                 </div>
             `).join('');
