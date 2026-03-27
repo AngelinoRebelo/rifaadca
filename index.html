@@ -86,6 +86,10 @@
         .status-pill { display: inline-flex; align-items: center; padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
         .status-pill.paid { background: #d4edda; color: #155724; }
         .status-pill.pending { background: #fff3cd; color: #7a5b00; }
+        .accordion-header { cursor: pointer; display:flex; justify-content:space-between; align-items:center; gap:0.8rem; flex-wrap:wrap; }
+        .accordion-body { display: none; margin-top: 0.8rem; }
+        .accordion-body.open { display: block; }
+        .accordion-toggle { font-size: 0.85rem; color: var(--text-light); font-weight: 700; }
         @media (min-width: 980px) {
             .rifa-layout { display: grid; grid-template-columns: minmax(300px, 360px) 1fr; gap: 1.2rem; align-items: start; }
             .cotas-lateral { margin-top: 0; }
@@ -205,12 +209,6 @@
     <div id="tab-pagamento" class="tab-content">
         <h1 class="page-title">Pagamento da Cota</h1>
         <p class="page-subtitle">Participantes que escolheram cotas e dados para pagamento</p>
-        <div class="card" style="margin-bottom:1.2rem">
-            <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
-                <div style="font-weight:700;color:var(--primary)">Forma de pagamento: PIX</div>
-                <button type="button" class="btn btn-accent" style="padding:0.65rem 1rem" onclick="abrirQrPix(0, 'Pagamento de cota')">Pagar</button>
-            </div>
-        </div>
         <div id="pagamento-lista"></div>
         <div id="modal-qr-pix" class="modal-backdrop">
             <div class="modal-card" style="max-width:560px">
@@ -927,7 +925,6 @@
                 SELECT p.id, p.nome, p.numero_cota, r.id, r.nome, r.valor_cota, COALESCE(p.pagamento_status, 'pendente')
                 FROM participantes p
                 INNER JOIN rifas r ON r.id = p.rifa_id
-                WHERE COALESCE(p.pagamento_status, 'pendente') = 'pendente'
                 ORDER BY r.nome ASC, p.numero_cota ASC
             `);
 
@@ -942,46 +939,73 @@
             }
 
             const grupos = new Map();
-            for (const [participanteId, nomeParticipante, numeroCota, rifaId, nomeRifa, valorCota] of rows) {
+            for (const [participanteId, nomeParticipante, numeroCota, rifaId, nomeRifa, valorCota, pagamentoStatus] of rows) {
                 if (!grupos.has(rifaId)) {
                     grupos.set(rifaId, {
                         nomeRifa,
                         valorCota,
-                        itens: []
+                        itens: [],
+                        pendentes: 0,
+                        pagos: 0
                     });
                 }
-                grupos.get(rifaId).itens.push({ participanteId, nomeParticipante, numeroCota });
+                const status = String(pagamentoStatus || 'pendente').toLowerCase();
+                if (status === 'pago') grupos.get(rifaId).pagos += 1;
+                else grupos.get(rifaId).pendentes += 1;
+                grupos.get(rifaId).itens.push({ participanteId, nomeParticipante, numeroCota, status });
             }
 
-            container.innerHTML = Array.from(grupos.values()).map(grupo => `
+            container.innerHTML = Array.from(grupos.entries()).map(([rifaId, grupo]) => `
                 <div class="card" style="margin-bottom:1rem">
-                    <div class="resultado-header" style="margin-bottom:0.5rem">
-                        <div class="resultado-title">${escapeHtml(grupo.nomeRifa)}</div>
-                        <div class="resultado-data">${grupo.itens.length} pendente(s)</div>
+                    <div class="accordion-header" onclick="togglePagamentoRifa(${rifaId})">
+                        <div>
+                            <div class="resultado-title">${escapeHtml(grupo.nomeRifa)}</div>
+                            <div style="font-size:0.9rem;color:var(--text-light)">
+                                Pagantes: <strong>${grupo.pagos}</strong> | Pendentes: <strong>${grupo.pendentes}</strong>
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+                            <span class="status-pill paid">Pagos ${grupo.pagos}</span>
+                            <span class="status-pill pending">Pendentes ${grupo.pendentes}</span>
+                            <span class="accordion-toggle" id="accordion-toggle-${rifaId}">▼ Abrir</span>
+                        </div>
                     </div>
-                    <div style="font-size:0.9rem;color:var(--text-light);margin-bottom:0.75rem">
-                        Valor por cota: <strong>R$ ${parseFloat(grupo.valorCota).toFixed(2)}</strong>
-                    </div>
-                    ${grupo.itens.map(item => `
-                        <div class="resultado-card" style="margin-bottom:0.75rem">
+                    <div id="accordion-body-${rifaId}" class="accordion-body">
+                        <div style="font-size:0.9rem;color:var(--text-light);margin-bottom:0.75rem">
+                            Valor por cota: <strong>R$ ${parseFloat(grupo.valorCota).toFixed(2)}</strong>
+                        </div>
+                        ${grupo.itens.map(item => `
+                        <div class="resultado-card" style="margin-bottom:0.75rem;opacity:${item.status === 'pago' ? '0.85' : '1'}">
                             <div class="resultado-header">
                                 <div class="resultado-title" style="font-size:1.05rem">${escapeHtml(item.nomeParticipante)}</div>
                                 <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
                                     <div class="resultado-data">Cota #${item.numeroCota}</div>
-                                    <span class="status-pill pending">Pendente</span>
+                                    <span class="status-pill ${item.status === 'pago' ? 'paid' : 'pending'}">${item.status === 'pago' ? 'Pago' : 'Pendente'}</span>
                                 </div>
                             </div>
                             <div style="display:flex;justify-content:flex-end">
-                                <button type="button" class="btn btn-accent" style="padding:0.45rem 0.85rem;font-size:0.9rem"
-                                    onclick="pagarComMercadoPago(${item.participanteId}, ${parseFloat(grupo.valorCota).toFixed(2)}, 'Rifa ${escapeForJsString(grupo.nomeRifa)} - Cota #${item.numeroCota}')">Pagar</button>
+                                ${item.status === 'pago'
+                                    ? '<span style="font-weight:700;color:var(--primary)">Pagamento aprovado</span>'
+                                    : `<button type="button" class="btn btn-accent" style="padding:0.45rem 0.85rem;font-size:0.9rem"
+                                        onclick="pagarComMercadoPago(${item.participanteId}, ${parseFloat(grupo.valorCota).toFixed(2)}, 'Rifa ${escapeForJsString(grupo.nomeRifa)} - Cota #${item.numeroCota}')">Pagar</button>`}
                             </div>
                         </div>
-                    `).join('')}
+                        `).join('')}
+                    </div>
                 </div>
             `).join('');
         } catch (err) {
             container.innerHTML = `<p style="color:var(--error)">❌ Erro ao carregar pagamentos: ${err.message}</p>`;
         }
+    }
+
+    function togglePagamentoRifa(rifaId) {
+        const body = document.getElementById(`accordion-body-${rifaId}`);
+        const label = document.getElementById(`accordion-toggle-${rifaId}`);
+        if (!body || !label) return;
+        const open = body.classList.contains('open');
+        body.classList.toggle('open', !open);
+        label.textContent = open ? '▼ Abrir' : '▲ Fechar';
     }
 
     // Select de rifas para sortear
