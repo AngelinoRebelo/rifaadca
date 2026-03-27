@@ -294,11 +294,11 @@
     const TURSO_URL = 'https://database-cordovan-feather-vercel-icfg-ni4jeabacdgrdfgmcjlnprsu.aws-us-east-1.turso.io/v2/pipeline';
     const TURSO_TOKEN = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NzQ1MzQ0NjEsImlkIjoiMDE5ZDJhN2YtMDYwMS03Mzg2LTkzYjgtN2Y2NzI3NTgwNWM4IiwicmlkIjoiZDYyYTI2M2YtMjQzZi00ODU5LWIwMjQtMWUzZWRkZmY3ZjlkIn0.R7V76HhsQFC1vAdFH8Cyc6VOMK4gLvU_6Vy-xt-J6lRZFUo26fH2_QX5H6xOFP3IMSOIqCxpzUxMED0CX4l5Ag';
     const AUTH_STORAGE_KEY = 'rifaadca_auth_user';
-    const AUTH_ALLOWED_NAMES = new Set([
-        'GABRIEL ANGELINO REBELO MACHADO',
-        'RACHEL COSTA DE MELO',
-        'SIMONE DA SILVA NASCIMENTO MACHADO',
-        'DANIEL DA SILVA MACHADO'
+    const AUTH_ALLOWED_NAME_HASHES = new Set([
+        '535a5cf58cf12092ac66ab7eb1e5c459b57d04666938eab2899c3bb93fa456bc',
+        '4d8718801bb20903adf54f71799c7a53f989ce88cac0732cbb0695dd0a9808e1',
+        '7499a276c38840efe7ac38a32d96682c022e102d9b6d70e83cf6bd50e9208fb7',
+        '3ff2b2aa6d4ac054505de57e4cbc340aff1d0622a5649b1cda7ee3bd9c6584d8'
     ]);
     // Backend que vai conversar com a API do Mercado Pago.
     // Em producao usa o mesmo dominio (/api). Local usa localhost:3000.
@@ -494,6 +494,11 @@
         return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
+    async function isAuthorizedName(nomeNormalizado) {
+        const hash = await hashSenha(nomeNormalizado);
+        return AUTH_ALLOWED_NAME_HASHES.has(hash);
+    }
+
     async function login() {
         const usuario = normalizeAuthName(document.getElementById('login-usuario').value);
         const senha = (document.getElementById('login-senha').value || '').trim();
@@ -530,7 +535,7 @@
             alert('Informe nome e senha para cadastrar.');
             return;
         }
-        if (!AUTH_ALLOWED_NAMES.has(usuario)) {
+        if (!(await isAuthorizedName(usuario))) {
             alert('Este nome não está autorizado para cadastro.');
             return;
         }
