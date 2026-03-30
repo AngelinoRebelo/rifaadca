@@ -79,11 +79,21 @@ export async function executeTursoQuery(sql, params = []) {
   return { rows };
 }
 
+/** Atualiza por id (uma cota) ou por mp_payment_id (várias cotas no mesmo PIX). */
 export async function atualizarStatusParticipante(participanteId, status, mpPaymentId) {
-  await executeTursoQuery(
-    'UPDATE participantes SET pagamento_status = ?, mp_payment_id = ? WHERE id = ?',
-    [status, mpPaymentId || null, participanteId]
-  );
+  const mp = mpPaymentId != null && mpPaymentId !== '' ? String(mpPaymentId) : '';
+  if (mp) {
+    await executeTursoQuery(
+      `UPDATE participantes SET pagamento_status = ?, mp_payment_id = ?
+       WHERE mp_payment_id = ? OR id = ?`,
+      [status, mp, mp, participanteId]
+    );
+  } else {
+    await executeTursoQuery(
+      'UPDATE participantes SET pagamento_status = ?, mp_payment_id = ? WHERE id = ?',
+      [status, null, participanteId]
+    );
+  }
 }
 
 export async function criarPagamentoPix({ participanteId, amount, description, notificationUrl }) {

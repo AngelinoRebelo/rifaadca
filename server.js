@@ -66,10 +66,19 @@ async function executeTursoQuery(sql, params = []) {
 }
 
 async function atualizarStatusParticipante(participanteId, status, mpPaymentId) {
-  await executeTursoQuery(
-    'UPDATE participantes SET pagamento_status = ?, mp_payment_id = ? WHERE id = ?',
-    [status, mpPaymentId || null, participanteId]
-  );
+  const mp = mpPaymentId != null && mpPaymentId !== '' ? String(mpPaymentId) : '';
+  if (mp) {
+    await executeTursoQuery(
+      `UPDATE participantes SET pagamento_status = ?, mp_payment_id = ?
+       WHERE mp_payment_id = ? OR id = ?`,
+      [status, mp, mp, participanteId]
+    );
+  } else {
+    await executeTursoQuery(
+      'UPDATE participantes SET pagamento_status = ?, mp_payment_id = ? WHERE id = ?',
+      [status, null, participanteId]
+    );
+  }
 }
 
 app.post('/api/payments/mercadopago/pix', async (req, res) => {
