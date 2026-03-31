@@ -63,15 +63,20 @@
         .sorteador { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); border-radius: 20px; padding: 3rem; margin: 2rem auto; max-width: 600px; box-shadow: 0 10px 40px var(--shadow); position: relative; overflow: hidden; }
         .sorteador::after { content: ''; position: absolute; top: -120%; left: -40%; width: 60%; height: 300%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent); transform: rotate(18deg); opacity: 0; pointer-events: none; }
         .sorteador.sorting::after { opacity: 1; animation: shineSweep 1.2s linear infinite; }
+        .sorteador.sorting { animation: sorteadorPulse 0.9s ease-in-out infinite; }
+        .sorteador.jackpot { box-shadow: 0 0 0 3px rgba(212,175,55,0.45), 0 18px 56px rgba(0,0,0,0.35); }
         .vencedor-display { background: white; border-radius: 16px; padding: 2rem; margin: 2rem 0; min-height: 150px; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; color: var(--primary); font-family: 'Playfair Display', serif; transition: transform 0.2s ease, opacity 0.2s ease; }
         .vencedor-display.sorteando { color: var(--primary-light); box-shadow: inset 0 0 0 3px rgba(44,95,45,0.12); }
         .vencedor-display.cycle { transform: translateY(-2px) scale(1.01); opacity: 0.94; }
         .vencedor-display.reveal { animation: vencedorReveal 0.65s ease; }
+        .vencedor-display.suspense { animation: suspenseBlink 0.2s linear infinite; }
         .sorteio-status { color: rgba(255,255,255,0.88); font-size: 0.92rem; margin-top: -0.8rem; min-height: 1.2rem; }
         @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
         @keyframes sorteioShuffle { 0% { transform: translateY(0); opacity: 0.85; } 50% { transform: translateY(-2px); opacity: 1; } 100% { transform: translateY(0); opacity: 0.85; } }
         @keyframes shineSweep { from { transform: translateX(-140px) rotate(18deg); } to { transform: translateX(720px) rotate(18deg); } }
         @keyframes vencedorReveal { 0% { transform: scale(0.92); opacity: 0; } 60% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes suspenseBlink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.985); } }
+        @keyframes sorteadorPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.01); } }
         .resultado-card { background: var(--surface); border-radius: 12px; padding: 1.5rem; border-left: 4px solid var(--accent); margin-bottom: 1rem; box-shadow: 0 2px 8px var(--shadow); }
         .resultado-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem; }
         .resultado-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: var(--primary); }
@@ -1523,24 +1528,43 @@
                 return;
             }
 
-            // Animação interativa com desaceleração progressiva.
+            // Animação de sorteio em 3 fases: giro rapido, desaceleracao e suspense.
             statusText.textContent = `🎰 Preparando roleta com ${rows.length} participante(s)...`;
             sorteadorBox.classList.add('sorting');
             display.classList.add('sorteando');
-            const totalCiclos = 26;
+            const totalCiclos = 34;
             for (let i = 0; i < totalCiclos; i++) {
                 const candidato = rows[Math.floor(Math.random() * rows.length)];
                 const [, nomeCandidato, numeroCandidato] = candidato;
                 display.textContent = `🎟️ ${nomeCandidato} — Cota #${numeroCandidato}`;
                 display.classList.add('cycle');
                 const progresso = i / totalCiclos;
-                const pausa = Math.floor(60 + (progresso * progresso * 210)); // acelera no inicio e desacelera no fim
-                statusText.textContent = progresso < 0.75
-                    ? '🎲 Misturando nomes...'
-                    : '⏳ Quase lá... escolhendo vencedor final...';
+                let pausa = 0;
+                if (progresso < 0.5) pausa = 45; // fase rapida
+                else if (progresso < 0.8) pausa = Math.floor(65 + ((progresso - 0.5) * 180)); // comeca a frear
+                else pausa = Math.floor(150 + ((progresso - 0.8) * 520)); // suspense final
+
+                statusText.textContent = progresso < 0.6
+                    ? '🎲 Embaralhando cotas...'
+                    : progresso < 0.9
+                        ? '⏳ Desacelerando roleta...'
+                        : '😱 Suspense... quase revelando!';
                 await new Promise(resolve => setTimeout(resolve, pausa));
                 display.classList.remove('cycle');
             }
+
+            // Batida final de suspense antes da revelacao.
+            const ultimos = rows
+                .map(r => ({ id: r[0], nome: r[1], cota: r[2] }))
+                .sort(() => Math.random() - 0.5)
+                .slice(0, Math.min(3, rows.length));
+            display.classList.add('suspense');
+            for (const item of ultimos) {
+                display.textContent = `🎟️ ${item.nome} — Cota #${item.cota}`;
+                statusText.textContent = '🥁 ...';
+                await new Promise(resolve => setTimeout(resolve, 240));
+            }
+            display.classList.remove('suspense');
 
             const vencedor = rows[Math.floor(Math.random() * rows.length)];
             const [, nomeVencedor, numeroCota] = vencedor;
@@ -1554,20 +1578,24 @@
             );
 
             sorteadorBox.classList.remove('sorting');
+            sorteadorBox.classList.add('jackpot');
             display.classList.remove('sorteando');
             display.textContent = `🏆 ${nomeVencedor} — Cota #${numeroCota}`;
             display.classList.remove('reveal');
             void display.offsetWidth;
             display.classList.add('reveal');
-            statusText.textContent = '✅ Sorteio concluído com sucesso!';
+            statusText.textContent = '🎉 Temos um vencedor!';
             display.style.animation = 'none';
             setTimeout(() => { display.style.animation = 'pulse 0.5s ease'; }, 10);
+            setTimeout(() => { sorteadorBox.classList.remove('jackpot'); }, 2200);
 
             setTimeout(carregarRifasSortear, 2000);
 
         } catch (err) {
             sorteadorBox.classList.remove('sorting');
+            sorteadorBox.classList.remove('jackpot');
             display.classList.remove('sorteando');
+            display.classList.remove('suspense');
             statusText.textContent = '';
             alert('Erro ao sortear: ' + err.message);
             console.error(err);
