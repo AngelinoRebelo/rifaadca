@@ -45,7 +45,10 @@
         .btn-accent:hover { background: #c29d2e; }
         .rifas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(520px, 1fr)); gap: 1.25rem; margin-top: 1.25rem; }
         .rifa-card { background: var(--surface); border-radius: 12px; padding: 1rem; border: 2px solid var(--border); transition: all 0.3s ease; position: relative; overflow: hidden; }
-        .rifa-card-img { width: 100%; max-height: 150px; object-fit: cover; border-radius: 10px; margin-bottom: 0.6rem; border: 1px solid var(--border); background: var(--bg); }
+        .rifa-main { display: flex; flex-direction: column; height: 100%; }
+        .rifa-card-media { width: 100%; height: 150px; border-radius: 10px; margin-bottom: 0.6rem; border: 1px solid var(--border); background: var(--bg); overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        .rifa-card-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .rifa-card-media.placeholder { background: linear-gradient(135deg, #eef3ec, #f5f1df); color: var(--primary); font-weight: 700; font-size: 0.95rem; }
         .form-file-hint { font-size: 0.85rem; color: var(--text-light); margin-top: 0.35rem; }
         .imagem-preview-wrap { margin-top: 0.75rem; display: none; }
         .imagem-preview-wrap.visible { display: block; }
@@ -59,6 +62,8 @@
         .rifa-info-value { font-weight: 600; color: var(--primary); }
         .progress-bar { background: var(--border); height: 7px; border-radius: 4px; overflow: hidden; margin: 0.5rem 0; }
         .progress-fill { background: linear-gradient(90deg, var(--primary), var(--primary-light)); height: 100%; transition: width 0.3s ease; }
+        .rifa-sold-text { text-align:center;color:var(--text-light);font-size:0.85rem;margin-top:0.3rem; }
+        .rifa-actions { margin-top:0.5rem; display:flex; justify-content:center; gap:0.55rem; flex-wrap:wrap; }
         .sorteio-section { text-align: center; padding: 3rem 0; }
         .sorteador { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); border-radius: 20px; padding: 3rem; margin: 2rem auto; max-width: 600px; box-shadow: 0 10px 40px var(--shadow); position: relative; overflow: hidden; }
         .sorteador::after { content: ''; position: absolute; top: -120%; left: -40%; width: 60%; height: 300%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent); transform: rotate(18deg); opacity: 0; pointer-events: none; }
@@ -70,6 +75,8 @@
         .vencedor-display.cycle { transform: translateY(-2px) scale(1.01); opacity: 0.94; }
         .vencedor-display.reveal { animation: vencedorReveal 0.65s ease; }
         .vencedor-display.suspense { animation: suspenseBlink 0.2s linear infinite; }
+        .vencedor-display.flashing-text { animation: jitter 0.1s infinite; }
+        .vencedor-display.winner-boom { animation: boom 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         .sorteio-status { color: rgba(255,255,255,0.88); font-size: 0.92rem; margin-top: -0.8rem; min-height: 1.2rem; }
         .sorteio-progress { width: 100%; max-width: 420px; margin: 0.8rem auto 0; height: 7px; border-radius: 999px; background: rgba(255,255,255,0.2); overflow: hidden; }
         .sorteio-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #f0ca57, #d4af37); transition: width 0.15s ease; }
@@ -84,6 +91,16 @@
         @keyframes confettiFall {
             0% { transform: translateY(0) rotate(0deg); opacity: 1; }
             100% { transform: translateY(360px) rotate(460deg); opacity: 0; }
+        }
+        @keyframes jitter {
+            0% { transform: scale(1) translateY(0); filter: blur(0px); opacity: 0.9; }
+            50% { transform: scale(1.05) translateY(-2px); filter: blur(1px); opacity: 1; }
+            100% { transform: scale(0.98) translateY(2px); filter: blur(0px); opacity: 0.9; }
+        }
+        @keyframes boom {
+            0% { transform: scale(0.1); opacity: 0; }
+            60% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
         }
         .resultado-card { background: var(--surface); border-radius: 12px; padding: 1.5rem; border-left: 4px solid var(--accent); margin-bottom: 1rem; box-shadow: 0 2px 8px var(--shadow); }
         .resultado-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem; }
@@ -244,6 +261,7 @@
             <div class="modal-card">
                 <h3 style="color:var(--primary);font-family:'Playfair Display',serif;margin-bottom:0.5rem">Reservar Cota</h3>
                 <p id="modal-cota-descricao" style="color:var(--text-light);margin-bottom:1rem"></p>
+                <div id="modal-cotas-resumo" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin:-0.2rem 0 0.9rem"></div>
                 <div class="form-group">
                     <label class="form-label">Nome da pessoa</label>
                     <input type="text" class="form-input" id="modal-cota-nome" placeholder="Ex: Maria Oliveira" />
@@ -716,15 +734,15 @@
                 const participantes = participanteRows.length;
                 const pct = Math.round((participantes / numCotas) * 100);
                 const imgSrcOk = imgSrcParaRifa(imagem);
-                const imgHtml = imgSrcOk
-                    ? `<img class="rifa-card-img" src="${escapeHtmlAttr(imgSrcOk)}" alt="">`
-                    : '';
+                const mediaHtml = imgSrcOk
+                    ? `<div class="rifa-card-media"><img class="rifa-card-img" src="${escapeHtmlAttr(imgSrcOk)}" alt=""></div>`
+                    : `<div class="rifa-card-media placeholder">Sem imagem</div>`;
 
                 html += `
                     <div class="rifa-card" id="rifa-card-${id}">
                         <div class="rifa-layout">
-                            <div>
-                                ${imgHtml}
+                            <div class="rifa-main">
+                                ${mediaHtml}
                                 <h3 class="rifa-title">${escapeHtml(nome)}</h3>
                                 ${descricao ? `<p style="color:var(--text-light);margin-bottom:0.45rem;font-size:0.95rem">${escapeHtml(descricao)}</p>` : ''}
                                 <div class="rifa-info">
@@ -748,8 +766,8 @@
                                 <div class="progress-bar">
                                     <div class="progress-fill" style="width:${pct}%"></div>
                                 </div>
-                                <p style="text-align:center;color:var(--text-light);font-size:0.85rem;margin-top:0.3rem">${pct}% vendido</p>
-                                <div style="margin-top:0.5rem;display:flex;justify-content:center;gap:0.55rem;flex-wrap:wrap">
+                                <p class="rifa-sold-text">${pct}% vendido</p>
+                                <div class="rifa-actions">
                                     <button class="btn btn-accent" type="button" onclick="togglePainelCotas(${id}, '${escapeForJsString(nome)}')">Ver cotas</button>
                                     ${isLoggedIn()
                                         ? `<button class="btn" type="button" style="background:#8f2d2d;color:#fff"
@@ -842,6 +860,29 @@
         if (prev) prev.removeAttribute('src');
     }
 
+    function renderResumoCotasSelecionadas() {
+        const modal = document.getElementById('modal-cota');
+        const resumo = document.getElementById('modal-cotas-resumo');
+        if (!modal || !resumo) return;
+        let selecionadas = [];
+        try {
+            selecionadas = JSON.parse(modal.dataset.cotasSelecionadas || '[]');
+        } catch (e) {
+            selecionadas = [];
+        }
+        const ordenadas = selecionadas
+            .map(v => Number(v))
+            .filter(v => Number.isFinite(v))
+            .sort((a, b) => a - b);
+        if (!ordenadas.length) {
+            resumo.innerHTML = '<span style="font-size:0.86rem;color:var(--text-light)">Nenhuma cota selecionada.</span>';
+            return;
+        }
+        resumo.innerHTML = ordenadas.map(c =>
+            `<span style="background:#f4efe0;border:1px solid #e3d6a5;color:#5f4c13;padding:0.2rem 0.55rem;border-radius:999px;font-weight:700;font-size:0.83rem">#${c}</span>`
+        ).join('');
+    }
+
     async function abrirModalCota(rifaId, numeroCota, nomeRifa, numCotas = 0) {
         const modal = document.getElementById('modal-cota');
         const descricao = document.getElementById('modal-cota-descricao');
@@ -854,7 +895,8 @@
         modal.dataset.nomeRifa = String(nomeRifa);
         modal.dataset.numCotas = String(numCotas || 0);
         modal.dataset.cotasSelecionadas = JSON.stringify([numeroCota]);
-        descricao.textContent = `Rifa: ${nomeRifa} | Cota #${numeroCota}`;
+        descricao.textContent = `Rifa: ${nomeRifa}`;
+        renderResumoCotasSelecionadas();
         inputNome.value = '';
         btn.disabled = false;
         btn.textContent = 'Confirmar';
@@ -898,6 +940,7 @@
             selecionadas.push(parseInt(modal.dataset.numeroCota || '0', 10));
         }
         modal.dataset.cotasSelecionadas = JSON.stringify(selecionadas);
+        renderResumoCotasSelecionadas();
 
         document.querySelectorAll('#modal-cotas-selecao .cota-btn[data-cota]').forEach(btn => {
             const cota = parseInt(btn.dataset.cota || '0', 10);
@@ -1557,45 +1600,28 @@
                 return;
             }
 
-            // Animação de sorteio em 3 fases: giro rapido, desaceleracao e suspense.
-            statusText.textContent = `🎰 Preparando roleta com ${rows.length} participante(s)...`;
+            // Animação estilo "jitter": troca rapida por 2s e reveal com boom.
+            statusText.textContent = `🎰 Sorteando entre ${rows.length} participante(s)...`;
             sorteadorBox.classList.add('sorting');
             display.classList.add('sorteando');
-            const totalCiclos = 34;
-            for (let i = 0; i < totalCiclos; i++) {
+            display.classList.remove('winner-boom', 'reveal', 'cycle', 'suspense');
+            display.classList.add('flashing-text');
+            const duration = 2000;
+            const intervalSpeed = 40;
+            const startedAt = Date.now();
+            while ((Date.now() - startedAt) < duration) {
                 const candidato = rows[Math.floor(Math.random() * rows.length)];
                 const [, nomeCandidato, numeroCandidato] = candidato;
                 display.textContent = `🎟️ ${nomeCandidato} — Cota #${numeroCandidato}`;
-                display.classList.add('cycle');
-                const progresso = i / totalCiclos;
-                let pausa = 0;
-                if (progresso < 0.5) pausa = 45; // fase rapida
-                else if (progresso < 0.8) pausa = Math.floor(65 + ((progresso - 0.5) * 180)); // comeca a frear
-                else pausa = Math.floor(150 + ((progresso - 0.8) * 520)); // suspense final
-
-                statusText.textContent = progresso < 0.6
-                    ? '🎲 Embaralhando cotas...'
-                    : progresso < 0.9
-                        ? '⏳ Desacelerando roleta...'
-                        : '😱 Suspense... quase revelando!';
-                if (progressFill) progressFill.style.width = `${Math.min(94, Math.round(progresso * 100))}%`;
-                await new Promise(resolve => setTimeout(resolve, pausa));
-                display.classList.remove('cycle');
+                statusText.textContent = '🎲 Embaralhando nomes...';
+                if (progressFill) {
+                    const pct = Math.min(96, Math.round(((Date.now() - startedAt) / duration) * 100));
+                    progressFill.style.width = `${pct}%`;
+                }
+                await new Promise(resolve => setTimeout(resolve, intervalSpeed));
             }
-
-            // Batida final de suspense antes da revelacao.
-            const ultimos = rows
-                .map(r => ({ id: r[0], nome: r[1], cota: r[2] }))
-                .sort(() => Math.random() - 0.5)
-                .slice(0, Math.min(3, rows.length));
-            display.classList.add('suspense');
-            for (const item of ultimos) {
-                display.textContent = `🎟️ ${item.nome} — Cota #${item.cota}`;
-                statusText.textContent = '🥁 ...';
-                await new Promise(resolve => setTimeout(resolve, 240));
-            }
-            display.classList.remove('suspense');
-            if (progressFill) progressFill.style.width = '98%';
+            if (progressFill) progressFill.style.width = '99%';
+            display.classList.remove('flashing-text');
 
             const vencedor = rows[Math.floor(Math.random() * rows.length)];
             const [, nomeVencedor, numeroCota] = vencedor;
@@ -1618,12 +1644,15 @@
             sorteadorBox.classList.add('jackpot');
             display.classList.remove('sorteando');
             display.textContent = `🏆 ${nomeVencedor} — Cota #${numeroCota}`;
-            display.classList.remove('reveal');
+            display.classList.remove('reveal', 'winner-boom');
             void display.offsetWidth;
-            display.classList.add('reveal');
+            display.classList.add('winner-boom');
             statusText.textContent = '🎉 Temos um vencedor!';
-            display.style.animation = 'none';
-            setTimeout(() => { display.style.animation = 'pulse 0.5s ease'; }, 10);
+            setTimeout(() => {
+                display.classList.remove('winner-boom');
+                void display.offsetWidth;
+                display.style.animation = 'pulse 0.5s ease';
+            }, 520);
             if (progressFill) progressFill.style.width = '100%';
             if (confettiLayer) {
                 const cores = ['#f0ca57', '#d4af37', '#ffffff', '#9fe3b0', '#7ed6a7'];
@@ -1646,7 +1675,7 @@
             sorteadorBox.classList.remove('sorting');
             sorteadorBox.classList.remove('jackpot');
             display.classList.remove('sorteando');
-            display.classList.remove('suspense');
+            display.classList.remove('suspense', 'flashing-text', 'winner-boom');
             statusText.textContent = '';
             if (progressFill) progressFill.style.width = '0%';
             alert('Erro ao sortear: ' + err.message);
