@@ -136,7 +136,8 @@
         .accordion-body.open { display: block; }
         .accordion-toggle { font-size: 0.85rem; color: var(--text-light); font-weight: 700; }
         @media (min-width: 980px) {
-            .rifa-layout { display: grid; grid-template-columns: minmax(300px, 360px) 1fr; gap: 1.2rem; align-items: start; }
+            .rifa-layout { display: block; }
+            .rifa-card.expanded .rifa-layout { display: grid; grid-template-columns: minmax(300px, 360px) 1fr; gap: 1.2rem; align-items: start; }
             .cotas-lateral { margin-top: 0; }
         }
         @media (max-width: 768px) {
