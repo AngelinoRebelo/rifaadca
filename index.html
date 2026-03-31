@@ -140,7 +140,7 @@
         <nav class="nav">
             <button class="nav-btn active" id="btn-nav-criar" onclick="showTab('criar', this)">Criar Rifa</button>
             <button class="nav-btn" id="btn-nav-andamento" onclick="showTab('andamento', this)">Em Andamento</button>
-            <button class="nav-btn" onclick="showTab('pagamento', this)">Pagamento da Cota</button>
+            <button class="nav-btn" id="btn-nav-pagamento" onclick="showTab('pagamento', this)">Pagamento da Cota</button>
             <button class="nav-btn" id="btn-nav-sortear" onclick="showTab('sortear', this)">Sortear</button>
             <button class="nav-btn" onclick="showTab('resultados', this)">Resultados</button>
         </nav>
@@ -1133,11 +1133,14 @@
                 return;
             }
 
+            const idsCriados = [];
             for (const cota of cotasSolicitadas) {
-                await executeTursoQuery(
+                const insertRes = await executeTursoQuery(
                     'INSERT INTO participantes (rifa_id, nome, numero_cota, pagamento_status) VALUES (?, ?, ?, ?)',
                     [rifaId, nome, cota, 'pendente']
                 );
+                const novoId = Number(insertRes?.lastInsertRowid || 0);
+                if (novoId) idsCriados.push(novoId);
             }
 
             const cotasMsg = Array.from(cotasSolicitadas).sort((a, b) => a - b).map(c => `#${c}`).join(', ');
@@ -1145,6 +1148,22 @@
             fecharModalCota();
             await carregarRifasAndamento();
             carregarRifasSortear();
+            await carregarPagamentos();
+
+            const btnNavPagamento = document.getElementById('btn-nav-pagamento');
+            showTab('pagamento', btnNavPagamento || null);
+
+            if (idsCriados.length) {
+                const { rows: rifaRows } = await executeTursoQuery(
+                    'SELECT nome, valor_cota FROM rifas WHERE id = ? LIMIT 1',
+                    [rifaId]
+                );
+                const nomeRifa = String(rifaRows?.[0]?.[0] || modal.dataset.nomeRifa || 'Rifa');
+                const valorCota = Number(rifaRows?.[0]?.[1] || 0);
+                const valorTotal = valorCota * idsCriados.length;
+                const descricao = `Rifa ${nomeRifa} - ${nome}`;
+                await pagarMultiplasCotas(idsCriados[0], valorTotal, descricao, idsCriados);
+            }
         } catch (err) {
             showAlert('❌ Erro ao reservar cota: ' + err.message, 'error', 'alert-container-andamento');
             console.error(err);
