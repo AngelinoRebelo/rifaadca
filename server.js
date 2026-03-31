@@ -2,19 +2,45 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import crypto from 'node:crypto';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const APP_ROOT = __dirname;
+
 const PORT = Number(process.env.PORT || 3000);
-const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || '';
-const TURSO_URL = process.env.TURSO_URL || '';
-const TURSO_TOKEN = process.env.TURSO_TOKEN || '';
+const MP_ACCESS_TOKEN =
+  process.env.MP_ACCESS_TOKEN ||
+  process.env.MERCADOPAGO_ACCESS_TOKEN ||
+  process.env.MP_TOKEN ||
+  '';
+
+function normalizeTursoPipelineUrl(rawUrl) {
+  if (!rawUrl) return '';
+  if (rawUrl.startsWith('https://')) {
+    return rawUrl.includes('/v2/pipeline') ? rawUrl : `${rawUrl.replace(/\/$/, '')}/v2/pipeline`;
+  }
+  if (rawUrl.startsWith('libsql://')) {
+    return `${rawUrl.replace('libsql://', 'https://').replace(/\/$/, '')}/v2/pipeline`;
+  }
+  return rawUrl;
+}
+
+const TURSO_URL = normalizeTursoPipelineUrl(
+  process.env.TURSO_URL || process.env.TURSO_DATABASE_URL || ''
+);
+const TURSO_TOKEN = process.env.TURSO_TOKEN || process.env.TURSO_AUTH_TOKEN || '';
 
 if (!MP_ACCESS_TOKEN || !TURSO_URL || !TURSO_TOKEN) {
-  console.warn('Configure MP_ACCESS_TOKEN, TURSO_URL e TURSO_TOKEN no .env');
+  console.warn(
+    'Configure MP_ACCESS_TOKEN (ou MERCADOPAGO_ACCESS_TOKEN) e TURSO_URL+TURSO_TOKEN (ou TURSO_DATABASE_URL+TURSO_AUTH_TOKEN).'
+  );
 }
 
 const mpClient = new MercadoPagoConfig({ accessToken: MP_ACCESS_TOKEN });
@@ -95,7 +121,7 @@ app.post('/api/payments/mercadopago/pix', async (req, res) => {
       payment_method_id: 'pix',
       notification_url: `${req.protocol}://${req.get('host')}/api/payments/mercadopago/webhook`,
       external_reference: String(participanteId),
-      payer: { email: `pagador_${participanteId}@rifas.local` }
+      payer: { email: `pagador+${participanteId}@rifaadca.com` }
     };
 
     const payment = await mpPayment.create({
@@ -154,6 +180,12 @@ app.post('/api/payments/mercadopago/webhook', async (req, res) => {
   }
 });
 
+app.use(express.static(APP_ROOT));
+
+app.get(/^\/(?!api).*/, (req, res) => {
+  res.sendFile(path.join(APP_ROOT, 'index.html'));
+});
+
 app.listen(PORT, () => {
-  console.log(`Servidor Mercado Pago pronto em http://localhost:${PORT}`);
+  console.log(`Servidor web + API pronto na porta ${PORT}`);
 });
