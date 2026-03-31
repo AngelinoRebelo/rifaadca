@@ -1637,7 +1637,7 @@
                 'DELETE FROM participantes WHERE rifa_id = ?', [rifaId]
             );
             await executeTursoQuery(
-                'DELETE FROM rifas WHERE id = ?', [rifaId]
+                "UPDATE rifas SET status = 'sorteada' WHERE id = ?", [rifaId]
             );
 
             sorteadorBox.classList.remove('sorting');
