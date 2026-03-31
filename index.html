@@ -435,12 +435,20 @@
                 CREATE TABLE IF NOT EXISTS resultados (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     rifa_id INTEGER NOT NULL,
+                    rifa_nome TEXT,
+                    rifa_descricao TEXT,
+                    rifa_num_cotas INTEGER,
+                    rifa_valor_cota REAL,
                     vencedor_nome TEXT NOT NULL,
                     numero_sorteado INTEGER NOT NULL,
                     data_sorteio TEXT DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (rifa_id) REFERENCES rifas(id)
                 )
             `);
+            try { await executeTursoQuery(`ALTER TABLE resultados ADD COLUMN rifa_nome TEXT`); } catch (e) {}
+            try { await executeTursoQuery(`ALTER TABLE resultados ADD COLUMN rifa_descricao TEXT`); } catch (e) {}
+            try { await executeTursoQuery(`ALTER TABLE resultados ADD COLUMN rifa_num_cotas INTEGER`); } catch (e) {}
+            try { await executeTursoQuery(`ALTER TABLE resultados ADD COLUMN rifa_valor_cota REAL`); } catch (e) {}
             await executeTursoQuery(`
                 CREATE TABLE IF NOT EXISTS usuarios (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1527,6 +1535,13 @@
         if (confettiLayer) confettiLayer.innerHTML = '';
 
         try {
+            const { rows: rifaInfoRows } = await executeTursoQuery(
+                'SELECT nome, descricao, num_cotas, valor_cota FROM rifas WHERE id = ? LIMIT 1',
+                [rifaId]
+            );
+            if (!rifaInfoRows.length) throw new Error('Rifa não encontrada.');
+            const [nomeRifa, descricaoRifa, numCotasRifa, valorCotaRifa] = rifaInfoRows[0];
+
             const { rows } = await executeTursoQuery(
                 `SELECT id, nome, numero_cota
                  FROM participantes
@@ -1586,11 +1601,17 @@
             const [, nomeVencedor, numeroCota] = vencedor;
 
             await executeTursoQuery(
-                'INSERT INTO resultados (rifa_id, vencedor_nome, numero_sorteado) VALUES (?, ?, ?)',
-                [rifaId, nomeVencedor, numeroCota]
+                `INSERT INTO resultados (
+                    rifa_id, rifa_nome, rifa_descricao, rifa_num_cotas, rifa_valor_cota,
+                    vencedor_nome, numero_sorteado
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [rifaId, nomeRifa, descricaoRifa || null, numCotasRifa, valorCotaRifa, nomeVencedor, numeroCota]
             );
             await executeTursoQuery(
-                "UPDATE rifas SET status = 'sorteada' WHERE id = ?", [rifaId]
+                'DELETE FROM participantes WHERE rifa_id = ?', [rifaId]
+            );
+            await executeTursoQuery(
+                'DELETE FROM rifas WHERE id = ?', [rifaId]
             );
 
             sorteadorBox.classList.remove('sorting');
@@ -1642,10 +1663,16 @@
         container.innerHTML = '<p style="text-align:center;color:var(--text-light)">Carregando...</p>';
         try {
             const { rows } = await executeTursoQuery(`
-                SELECT r.nome, r.descricao, r.num_cotas, r.valor_cota,
-                       res.vencedor_nome, res.numero_sorteado, res.data_sorteio
-                FROM rifas r
-                INNER JOIN resultados res ON r.id = res.rifa_id
+                SELECT
+                    COALESCE(res.rifa_nome, r.nome) AS nome,
+                    COALESCE(res.rifa_descricao, r.descricao) AS descricao,
+                    COALESCE(res.rifa_num_cotas, r.num_cotas) AS num_cotas,
+                    COALESCE(res.rifa_valor_cota, r.valor_cota) AS valor_cota,
+                    res.vencedor_nome,
+                    res.numero_sorteado,
+                    res.data_sorteio
+                FROM resultados res
+                LEFT JOIN rifas r ON r.id = res.rifa_id
                 ORDER BY res.data_sorteio DESC
             `);
 
