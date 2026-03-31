@@ -71,12 +71,20 @@
         .vencedor-display.reveal { animation: vencedorReveal 0.65s ease; }
         .vencedor-display.suspense { animation: suspenseBlink 0.2s linear infinite; }
         .sorteio-status { color: rgba(255,255,255,0.88); font-size: 0.92rem; margin-top: -0.8rem; min-height: 1.2rem; }
+        .sorteio-progress { width: 100%; max-width: 420px; margin: 0.8rem auto 0; height: 7px; border-radius: 999px; background: rgba(255,255,255,0.2); overflow: hidden; }
+        .sorteio-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #f0ca57, #d4af37); transition: width 0.15s ease; }
+        .confetti-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+        .confetti { position: absolute; top: -20px; width: 9px; height: 14px; border-radius: 2px; opacity: 0.95; animation: confettiFall 1.9s linear forwards; }
         @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
         @keyframes sorteioShuffle { 0% { transform: translateY(0); opacity: 0.85; } 50% { transform: translateY(-2px); opacity: 1; } 100% { transform: translateY(0); opacity: 0.85; } }
         @keyframes shineSweep { from { transform: translateX(-140px) rotate(18deg); } to { transform: translateX(720px) rotate(18deg); } }
         @keyframes vencedorReveal { 0% { transform: scale(0.92); opacity: 0; } 60% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
         @keyframes suspenseBlink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.985); } }
         @keyframes sorteadorPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.01); } }
+        @keyframes confettiFall {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(360px) rotate(460deg); opacity: 0; }
+        }
         .resultado-card { background: var(--surface); border-radius: 12px; padding: 1.5rem; border-left: 4px solid var(--accent); margin-bottom: 1rem; box-shadow: 0 2px 8px var(--shadow); }
         .resultado-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem; }
         .resultado-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: var(--primary); }
@@ -297,6 +305,8 @@
                 <h2 style="color:white;margin-bottom:1rem;font-family:'Playfair Display',serif">🎉 Vencedor!</h2>
                 <div class="vencedor-display" id="vencedor-nome"></div>
                 <div class="sorteio-status" id="sorteio-status-text"></div>
+                <div class="sorteio-progress"><div class="sorteio-progress-fill" id="sorteio-progress-fill"></div></div>
+                <div class="confetti-layer" id="sorteio-confetti"></div>
                 <p style="color:rgba(255,255,255,0.9);margin-top:1rem">Parabéns ao ganhador!</p>
             </div>
         </div>
@@ -1508,9 +1518,13 @@
         const resultadoBox = document.getElementById('sorteio-resultado');
         const statusText = document.getElementById('sorteio-status-text');
         const sorteadorBox = document.querySelector('#sorteio-resultado .sorteador');
+        const progressFill = document.getElementById('sorteio-progress-fill');
+        const confettiLayer = document.getElementById('sorteio-confetti');
         btn.disabled = true;
         btn.innerHTML = '<span class="loading"></span> Sorteando...';
         resultadoBox.style.display = 'block';
+        if (progressFill) progressFill.style.width = '0%';
+        if (confettiLayer) confettiLayer.innerHTML = '';
 
         try {
             const { rows } = await executeTursoQuery(
@@ -1549,6 +1563,7 @@
                     : progresso < 0.9
                         ? '⏳ Desacelerando roleta...'
                         : '😱 Suspense... quase revelando!';
+                if (progressFill) progressFill.style.width = `${Math.min(94, Math.round(progresso * 100))}%`;
                 await new Promise(resolve => setTimeout(resolve, pausa));
                 display.classList.remove('cycle');
             }
@@ -1565,6 +1580,7 @@
                 await new Promise(resolve => setTimeout(resolve, 240));
             }
             display.classList.remove('suspense');
+            if (progressFill) progressFill.style.width = '98%';
 
             const vencedor = rows[Math.floor(Math.random() * rows.length)];
             const [, nomeVencedor, numeroCota] = vencedor;
@@ -1587,6 +1603,20 @@
             statusText.textContent = '🎉 Temos um vencedor!';
             display.style.animation = 'none';
             setTimeout(() => { display.style.animation = 'pulse 0.5s ease'; }, 10);
+            if (progressFill) progressFill.style.width = '100%';
+            if (confettiLayer) {
+                const cores = ['#f0ca57', '#d4af37', '#ffffff', '#9fe3b0', '#7ed6a7'];
+                for (let i = 0; i < 60; i++) {
+                    const part = document.createElement('span');
+                    part.className = 'confetti';
+                    part.style.left = `${Math.random() * 100}%`;
+                    part.style.background = cores[Math.floor(Math.random() * cores.length)];
+                    part.style.animationDelay = `${Math.random() * 0.35}s`;
+                    part.style.animationDuration = `${1.4 + Math.random() * 1.2}s`;
+                    confettiLayer.appendChild(part);
+                }
+                setTimeout(() => { confettiLayer.innerHTML = ''; }, 2600);
+            }
             setTimeout(() => { sorteadorBox.classList.remove('jackpot'); }, 2200);
 
             setTimeout(carregarRifasSortear, 2000);
@@ -1597,6 +1627,7 @@
             display.classList.remove('sorteando');
             display.classList.remove('suspense');
             statusText.textContent = '';
+            if (progressFill) progressFill.style.width = '0%';
             alert('Erro ao sortear: ' + err.message);
             console.error(err);
         }
