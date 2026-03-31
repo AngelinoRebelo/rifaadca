@@ -43,21 +43,21 @@
         .btn:active { transform: translateY(0); }
         .btn-accent { background: var(--accent); color: var(--text); }
         .btn-accent:hover { background: #c29d2e; }
-        .rifas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 2rem; }
-        .rifa-card { background: var(--surface); border-radius: 12px; padding: 1.5rem; border: 2px solid var(--border); transition: all 0.3s ease; position: relative; overflow: hidden; }
-        .rifa-card-img { width: 100%; max-height: 220px; object-fit: cover; border-radius: 10px; margin-bottom: 1rem; border: 1px solid var(--border); background: var(--bg); }
+        .rifas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.25rem; margin-top: 1.25rem; }
+        .rifa-card { background: var(--surface); border-radius: 12px; padding: 1rem; border: 2px solid var(--border); transition: all 0.3s ease; position: relative; overflow: hidden; }
+        .rifa-card-img { width: 100%; max-height: 150px; object-fit: cover; border-radius: 10px; margin-bottom: 0.6rem; border: 1px solid var(--border); background: var(--bg); }
         .form-file-hint { font-size: 0.85rem; color: var(--text-light); margin-top: 0.35rem; }
         .imagem-preview-wrap { margin-top: 0.75rem; display: none; }
         .imagem-preview-wrap.visible { display: block; }
         .imagem-preview { max-width: 100%; max-height: 180px; border-radius: 10px; border: 1px solid var(--border); object-fit: contain; background: var(--bg); }
         .rifa-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--primary), var(--accent)); }
         .rifa-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px var(--shadow); border-color: var(--primary); }
-        .rifa-title { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; color: var(--primary); margin-bottom: 0.75rem; }
-        .rifa-info { display: flex; flex-direction: column; gap: 0.5rem; margin: 1rem 0; }
-        .rifa-info-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+        .rifa-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; font-weight: 700; color: var(--primary); margin-bottom: 0.35rem; }
+        .rifa-info { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.35rem 0.7rem; margin: 0.6rem 0; }
+        .rifa-info-item { display: flex; justify-content: space-between; align-items: center; gap: 0.35rem; padding: 0.35rem 0; border-bottom: 1px solid var(--border); }
         .rifa-info-label { color: var(--text-light); font-size: 0.9rem; }
         .rifa-info-value { font-weight: 600; color: var(--primary); }
-        .progress-bar { background: var(--border); height: 8px; border-radius: 4px; overflow: hidden; margin: 1rem 0; }
+        .progress-bar { background: var(--border); height: 7px; border-radius: 4px; overflow: hidden; margin: 0.5rem 0; }
         .progress-fill { background: linear-gradient(90deg, var(--primary), var(--primary-light)); height: 100%; transition: width 0.3s ease; }
         .sorteio-section { text-align: center; padding: 3rem 0; }
         .sorteador { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); border-radius: 20px; padding: 3rem; margin: 2rem auto; max-width: 600px; box-shadow: 0 10px 40px var(--shadow); position: relative; overflow: hidden; }
@@ -726,7 +726,7 @@
                             <div>
                                 ${imgHtml}
                                 <h3 class="rifa-title">${escapeHtml(nome)}</h3>
-                                ${descricao ? `<p style="color:var(--text-light);margin-bottom:1rem">${escapeHtml(descricao)}</p>` : ''}
+                                ${descricao ? `<p style="color:var(--text-light);margin-bottom:0.45rem;font-size:0.95rem">${escapeHtml(descricao)}</p>` : ''}
                                 <div class="rifa-info">
                                     <div class="rifa-info-item">
                                         <span class="rifa-info-label">Total de Cotas</span>
@@ -748,8 +748,8 @@
                                 <div class="progress-bar">
                                     <div class="progress-fill" style="width:${pct}%"></div>
                                 </div>
-                                <p style="text-align:center;color:var(--text-light);font-size:0.9rem;margin-top:0.5rem">${pct}% vendido</p>
-                                <div style="margin-top:1rem;display:flex;justify-content:center;gap:0.75rem;flex-wrap:wrap">
+                                <p style="text-align:center;color:var(--text-light);font-size:0.85rem;margin-top:0.3rem">${pct}% vendido</p>
+                                <div style="margin-top:0.5rem;display:flex;justify-content:center;gap:0.55rem;flex-wrap:wrap">
                                     <button class="btn btn-accent" type="button" onclick="togglePainelCotas(${id}, '${escapeForJsString(nome)}')">Ver cotas</button>
                                     ${isLoggedIn()
                                         ? `<button class="btn" type="button" style="background:#8f2d2d;color:#fff"
