@@ -43,7 +43,7 @@
         .btn:active { transform: translateY(0); }
         .btn-accent { background: var(--accent); color: var(--text); }
         .btn-accent:hover { background: #c29d2e; }
-        .rifas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(520px, 1fr)); gap: 1.25rem; margin-top: 1.25rem; }
+        .rifas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.25rem; margin-top: 1.25rem; }
         .rifa-card { background: var(--surface); border-radius: 12px; padding: 1rem; border: 2px solid var(--border); transition: all 0.3s ease; position: relative; overflow: hidden; }
         .rifa-main { display: flex; flex-direction: column; height: 100%; }
         .rifa-card-media { width: 100%; height: 150px; border-radius: 10px; margin-bottom: 0.6rem; border: 1px solid var(--border); background: #f3f5f6; overflow: hidden; display: flex; align-items: center; justify-content: center; }
@@ -140,6 +140,7 @@
         @media (min-width: 980px) {
             .rifa-layout { display: block; }
             .rifa-card.expanded .rifa-layout { display: grid; grid-template-columns: minmax(300px, 360px) 1fr; gap: 1.2rem; align-items: start; }
+            .rifa-card.expanded { grid-column: 1 / -1; }
             .cotas-lateral { margin-top: 0; }
         }
         @media (max-width: 768px) {
