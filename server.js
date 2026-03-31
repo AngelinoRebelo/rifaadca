@@ -154,7 +154,21 @@ app.get('/api/payments/mercadopago/status/:participanteId', async (req, res) => 
       [participanteId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Participante nao encontrado' });
-    const [status, mpPaymentId] = rows[0];
+    let [status, mpPaymentId] = rows[0];
+
+    // Fallback: se webhook atrasar/falhar, sincroniza direto no MP.
+    if (String(status || '').toLowerCase() !== 'pago' && mpPaymentId) {
+      try {
+        const payment = await mpPayment.get({ id: Number(mpPaymentId) });
+        const syncedStatus = String(payment?.status || '').toLowerCase() === 'approved' ? 'pago' : 'pendente';
+        await atualizarStatusParticipante(participanteId, syncedStatus, payment?.id || mpPaymentId);
+        status = syncedStatus;
+        mpPaymentId = payment?.id || mpPaymentId;
+      } catch (syncErr) {
+        // Mantem status atual se o MP estiver indisponivel momentaneamente.
+      }
+    }
+
     return res.json({ status, mpPaymentId });
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Erro ao consultar status' });
