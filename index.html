@@ -322,6 +322,7 @@
     const PAYMENTS_API_BASE = (
         window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ) ? 'http://localhost:3000' : window.location.origin;
+    const COTAS_PRAZO_DIAS = 5;
 
     // ✅ FUNÇÃO CORRIGIDA — body, tipagem de params e parser da resposta
     async function executeTursoQuery(sql, params = []) {
@@ -406,12 +407,15 @@
                     numero_cota INTEGER NOT NULL,
                     pagamento_status TEXT DEFAULT 'pendente',
                     mp_payment_id TEXT,
+                    data_reserva TEXT DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (rifa_id) REFERENCES rifas(id)
                 )
             `);
             // Migração para bancos antigos que ainda não possuem status de pagamento.
             try { await executeTursoQuery(`ALTER TABLE participantes ADD COLUMN pagamento_status TEXT DEFAULT 'pendente'`); } catch (e) {}
             try { await executeTursoQuery(`ALTER TABLE participantes ADD COLUMN mp_payment_id TEXT`); } catch (e) {}
+            try { await executeTursoQuery(`ALTER TABLE participantes ADD COLUMN data_reserva TEXT`); } catch (e) {}
+            try { await executeTursoQuery(`UPDATE participantes SET data_reserva = CURRENT_TIMESTAMP WHERE data_reserva IS NULL`); } catch (e) {}
             await executeTursoQuery(`
                 CREATE TABLE IF NOT EXISTS resultados (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -665,6 +669,7 @@
         const container = document.getElementById('rifas-andamento');
         container.innerHTML = '<p style="text-align:center;color:var(--text-light)">Carregando...</p>';
         try {
+            await liberarCotasExpiradas();
             const { rows } = await executeTursoQuery(
                 `SELECT id, nome, descricao, num_cotas, valor_cota, data_sorteio, imagem
                  FROM rifas WHERE status = 'ativa' ORDER BY data_criacao DESC`
@@ -1084,6 +1089,19 @@
         }
     }
 
+    async function liberarCotasExpiradas() {
+        try {
+            await executeTursoQuery(
+                `DELETE FROM participantes
+                 WHERE COALESCE(pagamento_status, 'pendente') != 'pago'
+                 AND datetime(COALESCE(data_reserva, CURRENT_TIMESTAMP)) <= datetime('now', ?)`,
+                [`-${COTAS_PRAZO_DIAS} days`]
+            );
+        } catch (err) {
+            console.warn('Falha ao liberar cotas expiradas:', err);
+        }
+    }
+
     async function confirmarCota() {
         const modal = document.getElementById('modal-cota');
         const inputNome = document.getElementById('modal-cota-nome');
@@ -1112,6 +1130,7 @@
         btn.textContent = 'Salvando...';
 
         try {
+            await liberarCotasExpiradas();
             const cotasSolicitadas = new Set(selecionadas.map(v => Number(v)).filter(v => Number.isFinite(v)));
             for (const cota of cotasSolicitadas) {
                 if (numCotas > 0 && (cota < 1 || cota > numCotas)) {
@@ -1136,7 +1155,7 @@
             const idsCriados = [];
             for (const cota of cotasSolicitadas) {
                 const insertRes = await executeTursoQuery(
-                    'INSERT INTO participantes (rifa_id, nome, numero_cota, pagamento_status) VALUES (?, ?, ?, ?)',
+                    'INSERT INTO participantes (rifa_id, nome, numero_cota, pagamento_status, data_reserva) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)',
                     [rifaId, nome, cota, 'pendente']
                 );
                 const novoId = Number(insertRes?.lastInsertRowid || 0);
@@ -1178,6 +1197,7 @@
         container.innerHTML = '<p style="text-align:center;color:var(--text-light)">Carregando...</p>';
 
         try {
+            await liberarCotasExpiradas();
             const { rows } = await executeTursoQuery(`
                 SELECT p.id, p.nome, p.numero_cota, r.id, r.nome, r.valor_cota, COALESCE(p.pagamento_status, 'pendente')
                 FROM participantes p
@@ -1449,6 +1469,7 @@
     async function carregarRifasSortear() {
         const select = document.getElementById('select-rifa-sortear');
         try {
+            await liberarCotasExpiradas();
             const { rows } = await executeTursoQuery(
                 `SELECT r.id, r.nome
                  FROM rifas r
