@@ -128,6 +128,11 @@
         .cota-btn.selecionada { background: var(--accent); color: #2b2b2b; border-color: #c29d2e; box-shadow: 0 2px 8px rgba(212,175,55,0.35); }
         .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; z-index: 999; padding: 1rem; }
         .modal-card { width: min(480px, 100%); background: white; border-radius: 14px; padding: 1.25rem; box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
+        .modal-senha-acao { z-index: 1005; background: rgba(15, 35, 18, 0.55); backdrop-filter: blur(4px); }
+        .modal-senha-card { width: min(440px, 100%); background: linear-gradient(180deg, #ffffff 0%, #f9faf7 100%); border-radius: 16px; padding: 1.35rem 1.5rem; box-shadow: 0 24px 80px rgba(0,0,0,0.28); border: 2px solid var(--primary); }
+        .modal-senha-titulo { color: var(--primary); font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .modal-senha-texto { color: var(--text-light); font-size: 0.95rem; line-height: 1.45; margin-bottom: 1rem; }
+        .modal-senha-erro { display: none; padding: 0.65rem 0.85rem; border-radius: 8px; margin-bottom: 0.85rem; font-size: 0.9rem; background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
         .pix-link { border: none; background: transparent; color: var(--primary); font-weight: 700; text-decoration: underline; cursor: pointer; padding: 0; font-family: inherit; font-size: inherit; }
         .qr-img { width: 280px; max-width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem; background: #fff; }
         .status-pill { display: inline-flex; align-items: center; padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
@@ -344,6 +349,22 @@
     <div id="modal-imagem-rifa" class="modal-backdrop" onclick="fecharModalImagemRifa()">
         <div class="modal-imagem-card" onclick="event.stopPropagation()">
             <img id="modal-imagem-rifa-preview" class="modal-imagem-preview" alt="Imagem ampliada da rifa" />
+        </div>
+    </div>
+
+    <div id="modal-senha-acao" class="modal-backdrop modal-senha-acao" style="display:none" onclick="fecharModalSenhaAcaoSeBackdrop(event)">
+        <div class="modal-senha-card" onclick="event.stopPropagation()">
+            <div class="modal-senha-titulo" id="modal-senha-titulo">Confirmar</div>
+            <p class="modal-senha-texto" id="modal-senha-mensagem"></p>
+            <div id="modal-senha-erro" class="modal-senha-erro" role="alert"></div>
+            <div class="form-group" style="margin-bottom:1rem">
+                <label class="form-label" for="modal-senha-input">Sua senha</label>
+                <input type="password" id="modal-senha-input" class="form-input" autocomplete="current-password" placeholder="Digite sua senha" />
+            </div>
+            <div style="display:flex;gap:0.75rem;justify-content:flex-end;flex-wrap:wrap">
+                <button type="button" class="btn" style="background:transparent;color:var(--primary);box-shadow:none;border:2px solid var(--border)" id="modal-senha-btn-cancelar">Cancelar</button>
+                <button type="button" class="btn btn-accent" id="modal-senha-btn-confirmar">Confirmar</button>
+            </div>
         </div>
     </div>
 
@@ -886,6 +907,101 @@
         img.removeAttribute('src');
     }
 
+    function limparModalSenhaErro() {
+        const err = document.getElementById('modal-senha-erro');
+        if (err) {
+            err.style.display = 'none';
+            err.textContent = '';
+        }
+    }
+
+    function mostrarModalSenhaErro(msg) {
+        const err = document.getElementById('modal-senha-erro');
+        if (!err) return;
+        err.textContent = msg;
+        err.style.display = 'block';
+    }
+
+    function fecharModalSenhaUi() {
+        const modal = document.getElementById('modal-senha-acao');
+        const input = document.getElementById('modal-senha-input');
+        if (modal) modal.style.display = 'none';
+        if (input) input.value = '';
+        limparModalSenhaErro();
+    }
+
+    function fecharModalSenhaAcaoSeBackdrop(evt) {
+        if (evt.target && evt.target.id === 'modal-senha-acao') handleModalSenhaCancelar();
+    }
+
+    let modalSenhaState = null;
+
+    function abrirModalSenhaUi({ titulo, mensagem, textoBotaoConfirmar }) {
+        const tituloEl = document.getElementById('modal-senha-titulo');
+        const msgEl = document.getElementById('modal-senha-mensagem');
+        const btnOk = document.getElementById('modal-senha-btn-confirmar');
+        const modal = document.getElementById('modal-senha-acao');
+        if (!tituloEl || !msgEl || !btnOk || !modal) return;
+        tituloEl.textContent = titulo;
+        msgEl.textContent = mensagem;
+        btnOk.textContent = textoBotaoConfirmar || 'Confirmar';
+        limparModalSenhaErro();
+        const input = document.getElementById('modal-senha-input');
+        if (input) input.value = '';
+        modal.style.display = 'flex';
+        setTimeout(() => { if (input) input.focus(); }, 50);
+    }
+
+    function executarComConfirmacaoSenha({ titulo, mensagem, textoBotaoConfirmar = 'Confirmar', executar }) {
+        if (modalSenhaState) {
+            alert('Aguarde: já existe uma confirmação em andamento.');
+            return Promise.reject(new Error('busy'));
+        }
+        return new Promise((resolve, reject) => {
+            modalSenhaState = { resolve, reject, executar };
+            abrirModalSenhaUi({ titulo, mensagem, textoBotaoConfirmar });
+        });
+    }
+
+    async function handleModalSenhaConfirmar() {
+        if (!modalSenhaState) return;
+        const input = document.getElementById('modal-senha-input');
+        const btn = document.getElementById('modal-senha-btn-confirmar');
+        const senha = (input && input.value ? input.value : '').trim();
+        if (!senha) {
+            mostrarModalSenhaErro('Digite sua senha para confirmar.');
+            if (input) input.focus();
+            return;
+        }
+        btn.disabled = true;
+        try {
+            if (!(await validarSenhaUsuarioLogado(senha))) {
+                mostrarModalSenhaErro('Senha inválida. Tente novamente.');
+                if (input) {
+                    input.value = '';
+                    input.focus();
+                }
+                return;
+            }
+            await modalSenhaState.executar();
+            const resolve = modalSenhaState.resolve;
+            modalSenhaState = null;
+            fecharModalSenhaUi();
+            resolve();
+        } catch (err) {
+            mostrarModalSenhaErro(err.message || 'Não foi possível concluir a operação.');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function handleModalSenhaCancelar() {
+        const rej = modalSenhaState && modalSenhaState.reject;
+        modalSenhaState = null;
+        fecharModalSenhaUi();
+        if (rej) rej(new Error('cancel'));
+    }
+
     function renderResumoCotasSelecionadas() {
         const modal = document.getElementById('modal-cota');
         const resumo = document.getElementById('modal-cotas-resumo');
@@ -1382,7 +1498,7 @@
                                     const isPago = c.status === 'pago';
                                     const btnBaixa = !isPago && isLoggedIn()
                                         ? `<button type="button" class="btn" style="padding:0.3rem 0.65rem;font-size:0.78rem;background:var(--primary)"
-                                            onclick="darBaixaPagamentoCota(${c.participanteId}, '${escapeForJsString(grupo.nomeRifa)}', ${c.numeroCota})">Dar baixa</button>`
+                                            onclick="event.stopPropagation(); darBaixaPagamentoCota(${c.participanteId}, '${escapeForJsString(grupo.nomeRifa)}', ${c.numeroCota})">Dar baixa</button>`
                                         : '';
                                     return `
                                 <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;flex-wrap:wrap;padding:0.4rem 0;border-bottom:1px solid var(--border)">
@@ -1402,7 +1518,7 @@
                                 ${qtdPendentes === 0
                                     ? '<span style="font-weight:700;color:var(--primary)">Pagamento aprovado</span>'
                                     : `<button type="button" class="btn btn-accent" style="padding:0.45rem 0.85rem;font-size:0.85rem"
-                                        onclick="pagarMultiplasCotas(${idsPendentes[0]}, ${totalPendente.toFixed(2)}, 'Rifa ${escapeForJsString(grupo.nomeRifa)} - ${escapeForJsString(participante.nomeParticipante)}', ${JSON.stringify(idsPendentes)})">
+                                        onclick="event.stopPropagation(); pagarMultiplasCotas(${idsPendentes[0]}, ${totalPendente.toFixed(2)}, 'Rifa ${escapeForJsString(grupo.nomeRifa)} - ${escapeForJsString(participante.nomeParticipante)}', ${JSON.stringify(idsPendentes)})">
                                         Pagar total (${qtdPendentes} cotas)
                                     </button>`}
                             </div>
@@ -1432,28 +1548,36 @@
             abrirModalLogin();
             return;
         }
-        if (!confirm(`Registrar pagamento recebido (dinheiro, transferência manual, etc.) da cota #${numeroCota} na rifa "${nomeRifa}"?`)) {
+        const pid = Number(participanteId);
+        if (!Number.isFinite(pid)) {
+            alert('Identificador da cota inválido.');
             return;
         }
-        const senha = prompt('Digite sua senha para confirmar a baixa:');
-        if (!senha) return;
-
         try {
-            const senhaValida = await validarSenhaUsuarioLogado(senha);
-            if (!senhaValida) {
-                alert('Senha inválida. Operação cancelada.');
-                return;
-            }
-
-            await executeTursoQuery(
-                `UPDATE participantes SET pagamento_status = 'pago', mp_payment_id = NULL WHERE id = ?`,
-                [participanteId]
-            );
+            await executarComConfirmacaoSenha({
+                titulo: 'Confirmar baixa de pagamento',
+                mensagem: `Registrar pagamento recebido (dinheiro, transferência manual, etc.) da cota #${numeroCota} na rifa "${nomeRifa}".`,
+                textoBotaoConfirmar: 'Registrar baixa',
+                executar: async () => {
+                    await executeTursoQuery(
+                        `UPDATE participantes SET pagamento_status = 'pago', mp_payment_id = NULL WHERE id = ?`,
+                        [pid]
+                    );
+                    const { rows: ver } = await executeTursoQuery(
+                        `SELECT COALESCE(pagamento_status,'pendente') FROM participantes WHERE id = ?`,
+                        [pid]
+                    );
+                    if (!ver.length || String(ver[0][0]).toLowerCase() !== 'pago') {
+                        throw new Error('Não foi possível confirmar a baixa. Atualize a página e tente novamente.');
+                    }
+                }
+            });
             alert('✅ Baixa registrada. Cota marcada como paga.');
             await carregarPagamentos();
             await carregarRifasAndamento();
             await carregarRifasSortear();
         } catch (err) {
+            if (err.message === 'cancel' || err.message === 'busy') return;
             alert('Erro ao registrar baixa: ' + err.message);
         }
     }
@@ -1475,25 +1599,21 @@
             abrirModalLogin();
             return;
         }
-        if (!confirm(`Tem certeza que deseja excluir o bloco de pagamento da rifa "${nomeRifa}"?`)) {
-            return;
-        }
-
-        const senha = prompt('Confirme sua senha para excluir este bloco:');
-        if (!senha) return;
-
+        const rid = Number(rifaId);
         try {
-            const senhaValida = await validarSenhaUsuarioLogado(senha);
-            if (!senhaValida) {
-                alert('Senha inválida. Exclusão cancelada.');
-                return;
-            }
-
-            await executeTursoQuery('DELETE FROM participantes WHERE rifa_id = ?', [rifaId]);
+            await executarComConfirmacaoSenha({
+                titulo: 'Excluir bloco de pagamento',
+                mensagem: `Excluir todas as cotas e participantes da rifa "${nomeRifa}"? Esta ação não pode ser desfeita.`,
+                textoBotaoConfirmar: 'Excluir bloco',
+                executar: async () => {
+                    await executeTursoQuery('DELETE FROM participantes WHERE rifa_id = ?', [rid]);
+                }
+            });
             await carregarPagamentos();
             await carregarRifasAndamento();
             alert('✅ Bloco de pagamento excluído com sucesso.');
         } catch (err) {
+            if (err.message === 'cancel' || err.message === 'busy') return;
             alert('Erro ao excluir bloco: ' + err.message);
         }
     }
@@ -1504,27 +1624,24 @@
             abrirModalLogin();
             return;
         }
-        if (!confirm(`Excluir a rifa "${nomeRifa}"?\n\nSerão removidas todas as cotas, participantes, resultados e a própria rifa. Esta ação não pode ser desfeita.`)) {
-            return;
-        }
-        const senha = prompt('Confirme sua senha para excluir esta rifa:');
-        if (!senha) return;
-
+        const rid = Number(rifaId);
         try {
-            const senhaValida = await validarSenhaUsuarioLogado(senha);
-            if (!senhaValida) {
-                alert('Senha inválida. Exclusão cancelada.');
-                return;
-            }
-
-            await executeTursoQuery('DELETE FROM participantes WHERE rifa_id = ?', [rifaId]);
-            await executeTursoQuery('DELETE FROM resultados WHERE rifa_id = ?', [rifaId]);
-            await executeTursoQuery('DELETE FROM rifas WHERE id = ?', [rifaId]);
+            await executarComConfirmacaoSenha({
+                titulo: 'Excluir rifa',
+                mensagem: `Excluir a rifa "${nomeRifa}"? Serão removidas todas as cotas, participantes, resultados e a própria rifa. Esta ação não pode ser desfeita.`,
+                textoBotaoConfirmar: 'Excluir rifa',
+                executar: async () => {
+                    await executeTursoQuery('DELETE FROM participantes WHERE rifa_id = ?', [rid]);
+                    await executeTursoQuery('DELETE FROM resultados WHERE rifa_id = ?', [rid]);
+                    await executeTursoQuery('DELETE FROM rifas WHERE id = ?', [rid]);
+                }
+            });
             alert('✅ Rifa excluída com sucesso.');
             await carregarRifasAndamento();
             await carregarRifasSortear();
             await carregarPagamentos();
         } catch (err) {
+            if (err.message === 'cancel' || err.message === 'busy') return;
             alert('Erro ao excluir rifa: ' + err.message);
         }
     }
@@ -1626,24 +1743,30 @@
                 return;
             }
 
-            // Animação estilo "jitter": troca rapida por 2s e reveal com boom.
+            // Animação estilo "jitter": ~10s com desaceleração gradual e reveal com boom.
             statusText.textContent = `🎰 Sorteando entre ${rows.length} participante(s)...`;
             sorteadorBox.classList.add('sorting');
             display.classList.add('sorteando');
             display.classList.remove('winner-boom', 'reveal', 'cycle', 'suspense');
             display.classList.add('flashing-text');
-            const duration = 2000;
-            const intervalSpeed = 40;
+            const duration = 10000;
             const startedAt = Date.now();
             while ((Date.now() - startedAt) < duration) {
+                const elapsed = Date.now() - startedAt;
+                const progress = elapsed / duration;
                 const candidato = rows[Math.floor(Math.random() * rows.length)];
                 const [, nomeCandidato, numeroCandidato] = candidato;
                 display.textContent = `🎟️ ${nomeCandidato} — Cota #${numeroCandidato}`;
-                statusText.textContent = '🎲 Embaralhando nomes...';
+                statusText.textContent = progress < 0.35
+                    ? '🎲 Embaralhando nomes...'
+                    : progress < 0.7
+                        ? '⏳ Aumentando o suspense...'
+                        : '😱 Quase revelando o vencedor...';
                 if (progressFill) {
-                    const pct = Math.min(96, Math.round(((Date.now() - startedAt) / duration) * 100));
+                    const pct = Math.min(96, Math.round(progress * 100));
                     progressFill.style.width = `${pct}%`;
                 }
+                const intervalSpeed = Math.floor(32 + progress * progress * 140);
                 await new Promise(resolve => setTimeout(resolve, intervalSpeed));
             }
             if (progressFill) progressFill.style.width = '99%';
@@ -1695,7 +1818,7 @@
             }
             setTimeout(() => { sorteadorBox.classList.remove('jackpot'); }, 2200);
 
-            setTimeout(carregarRifasSortear, 2000);
+            setTimeout(carregarRifasSortear, 2500);
 
         } catch (err) {
             sorteadorBox.classList.remove('sorting');
@@ -1779,6 +1902,20 @@
         atualizarAuthUI();
         await initDatabase();
         document.getElementById('data-sorteio').min = new Date().toISOString().split('T')[0];
+
+        const btnSenhaOk = document.getElementById('modal-senha-btn-confirmar');
+        const btnSenhaCancel = document.getElementById('modal-senha-btn-cancelar');
+        const inputSenha = document.getElementById('modal-senha-input');
+        if (btnSenhaOk) btnSenhaOk.addEventListener('click', () => handleModalSenhaConfirmar());
+        if (btnSenhaCancel) btnSenhaCancel.addEventListener('click', () => handleModalSenhaCancelar());
+        if (inputSenha) {
+            inputSenha.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleModalSenhaConfirmar();
+                }
+            });
+        }
     });
 </script>
 </body>
