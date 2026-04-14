@@ -105,11 +105,22 @@
             100% { transform: scale(1); opacity: 1; }
         }
         .resultado-card { background: var(--surface); border-radius: 12px; padding: 1.5rem; border-left: 4px solid var(--accent); margin-bottom: 1rem; box-shadow: 0 2px 8px var(--shadow); }
+        .resultado-card-expandivel { cursor: pointer; transition: box-shadow 0.2s ease, transform 0.2s ease; }
+        .resultado-card-expandivel:hover { box-shadow: 0 8px 20px var(--shadow); transform: translateY(-1px); }
         .resultado-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem; }
         .resultado-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: var(--primary); }
         .resultado-data { background: var(--accent); color: var(--text); padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; }
         .vencedor-info { background: var(--bg); padding: 1rem; border-radius: 8px; margin-top: 1rem; }
         .vencedor-nome { font-size: 1.2rem; font-weight: 700; color: var(--primary); }
+        .resultado-expand-hint { margin-top: 0.8rem; color: var(--text-light); font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+        .resultado-expand-arrow { font-size: 0.95rem; font-weight: 700; color: var(--primary); transition: transform 0.2s ease; }
+        .resultado-participantes { display: none; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+        .resultado-participantes.open { display: block; }
+        .resultado-participantes.open + .resultado-expand-hint .resultado-expand-arrow { transform: rotate(180deg); }
+        .resultado-participante-item { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; padding: 0.65rem 0.8rem; border-radius: 8px; background: var(--bg); margin-bottom: 0.55rem; }
+        .resultado-participante-item:last-child { margin-bottom: 0; }
+        .resultado-participante-nome { color: var(--primary); font-weight: 600; }
+        .resultado-participante-cotas { color: var(--text-light); font-size: 0.92rem; text-align: right; }
         .empty-state { text-align: center; padding: 4rem 2rem; color: var(--text-light); }
         .empty-icon { font-size: 4rem; margin-bottom: 1rem; opacity: 0.3; }
         select.form-input { cursor: pointer; }
@@ -498,6 +509,15 @@
             try { await executeTursoQuery(`ALTER TABLE resultados ADD COLUMN rifa_descricao TEXT`); } catch (e) {}
             try { await executeTursoQuery(`ALTER TABLE resultados ADD COLUMN rifa_num_cotas INTEGER`); } catch (e) {}
             try { await executeTursoQuery(`ALTER TABLE resultados ADD COLUMN rifa_valor_cota REAL`); } catch (e) {}
+            await executeTursoQuery(`
+                CREATE TABLE IF NOT EXISTS resultado_participantes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    resultado_id INTEGER NOT NULL,
+                    nome_participante TEXT NOT NULL,
+                    numero_cota INTEGER NOT NULL,
+                    FOREIGN KEY (resultado_id) REFERENCES resultados(id)
+                )
+            `);
             await executeTursoQuery(`
                 CREATE TABLE IF NOT EXISTS usuarios (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1775,13 +1795,23 @@
             const vencedor = rows[Math.floor(Math.random() * rows.length)];
             const [, nomeVencedor, numeroCota] = vencedor;
 
-            await executeTursoQuery(
+            const { lastInsertRowid } = await executeTursoQuery(
                 `INSERT INTO resultados (
                     rifa_id, rifa_nome, rifa_descricao, rifa_num_cotas, rifa_valor_cota,
                     vencedor_nome, numero_sorteado
                  ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 [rifaId, nomeRifa, descricaoRifa || null, numCotasRifa, valorCotaRifa, nomeVencedor, numeroCota]
             );
+            const resultadoId = Number(lastInsertRowid);
+            if (Number.isFinite(resultadoId) && resultadoId > 0) {
+                for (const [, nomeParticipante, numeroParticipante] of rows) {
+                    await executeTursoQuery(
+                        `INSERT INTO resultado_participantes (resultado_id, nome_participante, numero_cota)
+                         VALUES (?, ?, ?)`,
+                        [resultadoId, nomeParticipante, numeroParticipante]
+                    );
+                }
+            }
             await executeTursoQuery(
                 'DELETE FROM participantes WHERE rifa_id = ?', [rifaId]
             );
@@ -1836,12 +1866,19 @@
     }
 
     // Resultados
+    function toggleResultadoParticipantes(resultadoId) {
+        const painel = document.getElementById(`resultado-participantes-${resultadoId}`);
+        if (!painel) return;
+        painel.classList.toggle('open');
+    }
+
     async function carregarResultados() {
         const container = document.getElementById('resultados-lista');
         container.innerHTML = '<p style="text-align:center;color:var(--text-light)">Carregando...</p>';
         try {
             const { rows } = await executeTursoQuery(`
                 SELECT
+                    res.id,
                     COALESCE(res.rifa_nome, r.nome) AS nome,
                     COALESCE(res.rifa_descricao, r.descricao) AS descricao,
                     COALESCE(res.rifa_num_cotas, r.num_cotas) AS num_cotas,
@@ -1864,8 +1901,31 @@
                 return;
             }
 
-            container.innerHTML = rows.map(([nome, descricao, numCotas, valorCota, vencedorNome, numeroSorteado, dataResultado]) => `
-                <div class="resultado-card">
+            const resultadoIds = rows.map(([resultadoId]) => resultadoId).filter(v => Number.isFinite(Number(v)));
+            const participantesPorResultado = new Map();
+            if (resultadoIds.length) {
+                const placeholders = resultadoIds.map(() => '?').join(', ');
+                const { rows: participantesRows } = await executeTursoQuery(
+                    `SELECT resultado_id, nome_participante, numero_cota
+                     FROM resultado_participantes
+                     WHERE resultado_id IN (${placeholders})
+                     ORDER BY numero_cota ASC`,
+                    resultadoIds
+                );
+                participantesRows.forEach(([resultadoId, nomeParticipante, numeroCota]) => {
+                    if (!participantesPorResultado.has(resultadoId)) {
+                        participantesPorResultado.set(resultadoId, new Map());
+                    }
+                    const participantesMap = participantesPorResultado.get(resultadoId);
+                    if (!participantesMap.has(nomeParticipante)) {
+                        participantesMap.set(nomeParticipante, []);
+                    }
+                    participantesMap.get(nomeParticipante).push(numeroCota);
+                });
+            }
+
+            container.innerHTML = rows.map(([resultadoId, nome, descricao, numCotas, valorCota, vencedorNome, numeroSorteado, dataResultado]) => `
+                <div class="resultado-card resultado-card-expandivel" onclick="toggleResultadoParticipantes(${resultadoId})">
                     <div class="resultado-header">
                         <div class="resultado-title">${nome}</div>
                         <div class="resultado-data">${new Date(dataResultado).toLocaleDateString('pt-BR')}</div>
@@ -1888,6 +1948,27 @@
                     <div class="vencedor-info">
                         <div style="font-size:0.85rem;color:var(--text-light);margin-bottom:0.25rem">🏆 Vencedor</div>
                         <div class="vencedor-nome">${vencedorNome}</div>
+                    </div>
+                    <div class="resultado-participantes" id="resultado-participantes-${resultadoId}">
+                        ${(() => {
+                            const participantesMap = participantesPorResultado.get(resultadoId);
+                            if (!participantesMap || !participantesMap.size) {
+                                return '<div style="color:var(--text-light)">Sem histórico de participantes para este resultado.</div>';
+                            }
+                            return Array.from(participantesMap.entries()).map(([nomeParticipante, cotas]) => {
+                                const cotasOrdenadas = cotas.sort((a, b) => a - b).map(c => `#${c}`).join(', ');
+                                return `
+                                    <div class="resultado-participante-item">
+                                        <div class="resultado-participante-nome">${escapeHtml(nomeParticipante)}</div>
+                                        <div class="resultado-participante-cotas">${cotas.length} cota(s): ${cotasOrdenadas}</div>
+                                    </div>
+                                `;
+                            }).join('');
+                        })()}
+                    </div>
+                    <div class="resultado-expand-hint">
+                        <span>Clique para ${participantesPorResultado.has(resultadoId) ? 'ver participantes e cotas' : 'tentar exibir participantes'}</span>
+                        <span class="resultado-expand-arrow">▼</span>
                     </div>
                 </div>
             `).join('');
