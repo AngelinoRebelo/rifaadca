@@ -407,9 +407,6 @@
 </div>
 
 <script>
-    // URL do Turso para o frontend (mesmo banco do backend)
-    const TURSO_URL = 'https://database-cordovan-feather-vercel-icfg-ni4jeabacdgrdfgmcjlnprsu.aws-us-east-1.turso.io/v2/pipeline';
-    const TURSO_TOKEN = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzQ5NTUzMzksImlkIjoiMDE5ZDJhN2YtMDYwMS03Mzg2LTkzYjgtN2Y2NzI3NTgwNWM4IiwicmlkIjoiZDYyYTI2M2YtMjQzZi00ODU5LWIwMjQtMWUzZWRkZmY3ZjlkIn0.LTnG8oNcDVgZaWg16OEsYTlFusYUqxySLl4ytejesQ-IHNzLIwFpCEbuKBInQUB9hK9CvKdbI-4RDGGDZqnNDA';
     const AUTH_STORAGE_KEY = 'rifaadca_auth_user';
     const AUTH_ALLOWED_NAME_HASHES = new Set([
         '535a5cf58cf12092ac66ab7eb1e5c459b57d04666938eab2899c3bb93fa456bc',
@@ -424,30 +421,20 @@
     ) ? 'http://localhost:3000' : window.location.origin;
     const COTAS_PRAZO_DIAS = 5;
 
-    // ✅ FUNÇÃO CORRIGIDA — body, tipagem de params e parser da resposta
+    const APP_API_BASE = (
+        window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ) ? 'http://localhost:3000' : window.location.origin;
+
+    // Todas as queries ao Turso passam pelo backend para nao expor o token no navegador.
     async function executeTursoQuery(sql, params = []) {
-        const response = await fetch(TURSO_URL, {
+        const response = await fetch(`${APP_API_BASE}/api/db/query`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${TURSO_TOKEN}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                requests: [
-                    {
-                        type: 'execute',
-                        stmt: {
-                            sql,
-                            args: params.map(p => {
-                                if (p === null || p === undefined) return { type: 'null' };
-                                if (typeof p === 'number' && Number.isInteger(p)) return { type: 'integer', value: String(p) };
-                                if (typeof p === 'number') return { type: 'float', value: String(p) };
-                                return { type: 'text', value: String(p) };
-                            })
-                        }
-                    },
-                    { type: 'close' }
-                ]
+                sql,
+                params
             })
         });
 
@@ -456,29 +443,14 @@
             throw new Error(`HTTP ${response.status}: ${txt}`);
         }
 
-        const data = await response.json(); 
-
-        // Verificar erro retornado pela API
-        if (data.results?.[0]?.type === 'error') {
-            throw new Error(data.results[0].error?.message || 'Erro desconhecido no Turso');
+        const data = await response.json();
+        if (data?.error) {
+            throw new Error(data.error);
         }
-
-        const result = data.results?.[0]?.response?.result;
-
-        // Converter rows para valores tipados
-        const rows = (result?.rows || []).map(row =>
-            row.map(cell => {
-                if (cell.type === 'null') return null;
-                if (cell.type === 'integer') return parseInt(cell.value);
-                if (cell.type === 'float') return parseFloat(cell.value);
-                return cell.value;
-            })
-        );
-
         return {
-            rows,
-            cols: (result?.cols || []).map(c => c.name),
-            lastInsertRowid: result?.last_insert_rowid ?? null
+            rows: data?.rows || [],
+            cols: data?.cols || [],
+            lastInsertRowid: data?.lastInsertRowid ?? null
         };
     }
 

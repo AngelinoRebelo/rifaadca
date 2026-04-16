@@ -88,8 +88,28 @@ async function executeTursoQuery(sql, params = []) {
       return cell.value;
     })
   );
-  return { rows };
+  return {
+    rows,
+    cols: (result?.cols || []).map((c) => c.name),
+    lastInsertRowid: result?.last_insert_rowid ?? null
+  };
 }
+
+app.post('/api/db/query', async (req, res) => {
+  try {
+    const { sql, params } = req.body || {};
+    if (typeof sql !== 'string' || !sql.trim()) {
+      return res.status(400).json({ error: 'sql obrigatorio' });
+    }
+    if (params !== undefined && !Array.isArray(params)) {
+      return res.status(400).json({ error: 'params deve ser um array' });
+    }
+    const result = await executeTursoQuery(sql, Array.isArray(params) ? params : []);
+    return res.json(result);
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Erro ao executar query' });
+  }
+});
 
 async function atualizarStatusParticipante(participanteId, status, mpPaymentId) {
   const mp = mpPaymentId != null && mpPaymentId !== '' ? String(mpPaymentId) : '';
