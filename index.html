@@ -107,7 +107,8 @@
         .resultado-card { background: var(--surface); border-radius: 12px; padding: 1.5rem; border-left: 4px solid var(--accent); margin-bottom: 1rem; box-shadow: 0 2px 8px var(--shadow); }
         .resultado-card-expandivel { cursor: pointer; transition: box-shadow 0.2s ease, transform 0.2s ease; }
         .resultado-card-expandivel:hover { box-shadow: 0 8px 20px var(--shadow); transform: translateY(-1px); }
-        .resultado-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem; }
+        .resultado-header { display: flex; justify-content: space-between; align-items: start; gap: 0.75rem; margin-bottom: 1rem; }
+        .resultado-header-actions { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; justify-content: flex-end; }
         .resultado-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: var(--primary); }
         .resultado-data { background: var(--accent); color: var(--text); padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; }
         .vencedor-info { background: var(--bg); padding: 1rem; border-radius: 8px; margin-top: 1rem; }
@@ -1666,6 +1667,36 @@
         }
     }
 
+    async function excluirResultadoComSenha(resultadoId, nomeRifa) {
+        if (!isLoggedIn()) {
+            alert('Faça login para excluir um resultado.');
+            abrirModalLogin();
+            return;
+        }
+        const rid = Number(resultadoId);
+        if (!Number.isFinite(rid)) {
+            alert('Resultado inválido.');
+            return;
+        }
+        try {
+            await executarComConfirmacaoSenha({
+                titulo: 'Excluir resultado',
+                mensagem: `Excluir o resultado da rifa "${nomeRifa}"? O histórico de participantes e cotas deste sorteio também será removido.`,
+                textoBotaoConfirmar: 'Excluir resultado',
+                executar: async () => {
+                    await executeTursoQuery('DELETE FROM resultado_participantes WHERE resultado_id = ?', [rid]);
+                    await executeTursoQuery('DELETE FROM resultados WHERE id = ?', [rid]);
+                }
+            });
+            alert('✅ Resultado excluído com sucesso.');
+            await carregarResultados();
+            await carregarRifasSortear();
+        } catch (err) {
+            if (err.message === 'cancel' || err.message === 'busy') return;
+            alert('Erro ao excluir resultado: ' + err.message);
+        }
+    }
+
     async function pagarMultiplasCotas(participanteIdBase, valorTotal, descricaoBase, participanteIds) {
         try {
             const descricao = `${descricaoBase} - ${participanteIds.length} cota(s)`;
@@ -1928,7 +1959,14 @@
                 <div class="resultado-card resultado-card-expandivel" onclick="toggleResultadoParticipantes(${resultadoId})">
                     <div class="resultado-header">
                         <div class="resultado-title">${nome}</div>
-                        <div class="resultado-data">${new Date(dataResultado).toLocaleDateString('pt-BR')}</div>
+                        <div class="resultado-header-actions">
+                            <div class="resultado-data">${new Date(dataResultado).toLocaleDateString('pt-BR')}</div>
+                            <button
+                                type="button"
+                                class="btn btn-danger"
+                                onclick="event.stopPropagation(); excluirResultadoComSenha(${resultadoId}, '${escapeForJsString(nome)}')"
+                            >Excluir resultado</button>
+                        </div>
                     </div>
                     ${descricao ? `<p style="color:var(--text-light);margin-bottom:1rem">${descricao}</p>` : ''}
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:1rem">
