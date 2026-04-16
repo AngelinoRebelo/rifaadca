@@ -72,13 +72,27 @@
         .sorteador.sorting::after { opacity: 1; animation: shineSweep 1.2s linear infinite; }
         .sorteador.sorting { animation: sorteadorPulse 0.9s ease-in-out infinite; }
         .sorteador.jackpot { box-shadow: 0 0 0 3px rgba(212,175,55,0.45), 0 18px 56px rgba(0,0,0,0.35); }
-        .vencedor-display { background: white; border-radius: 16px; padding: 2rem; margin: 2rem 0; min-height: 150px; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; color: var(--primary); font-family: 'Playfair Display', serif; transition: transform 0.2s ease, opacity 0.2s ease; }
+        .vencedor-display { background: white; border-radius: 16px; padding: 1.25rem; margin: 2rem 0; min-height: 220px; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; color: var(--primary); font-family: 'Playfair Display', serif; transition: transform 0.2s ease, opacity 0.2s ease; }
         .vencedor-display.sorteando { color: var(--primary-light); box-shadow: inset 0 0 0 3px rgba(44,95,45,0.12); }
         .vencedor-display.cycle { transform: translateY(-2px) scale(1.01); opacity: 0.94; }
         .vencedor-display.reveal { animation: vencedorReveal 0.65s ease; }
         .vencedor-display.suspense { animation: suspenseBlink 0.2s linear infinite; }
         .vencedor-display.flashing-text { animation: jitter 0.1s infinite; }
         .vencedor-display.winner-boom { animation: boom 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .roleta-shell { position: relative; width: 100%; max-width: 500px; height: 180px; overflow: hidden; border-radius: 14px; background: linear-gradient(180deg, #f7f8f5 0%, #ffffff 30%, #ffffff 70%, #f7f8f5 100%); border: 1px solid var(--border); display: none; }
+        .roleta-shell::before, .roleta-shell::after { content: ''; position: absolute; left: 0; right: 0; height: 36px; z-index: 2; pointer-events: none; }
+        .roleta-shell::before { top: 0; background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0)); }
+        .roleta-shell::after { bottom: 0; background: linear-gradient(0deg, rgba(255,255,255,0.96), rgba(255,255,255,0)); }
+        .roleta-center-marker { position: absolute; left: 12px; right: 12px; top: 50%; transform: translateY(-50%); height: 74px; border-radius: 12px; border: 2px solid rgba(212,175,55,0.75); box-shadow: 0 0 0 9999px rgba(255,255,255,0.02) inset; z-index: 1; }
+        .roleta-track { position: absolute; left: 0; right: 0; top: 0; will-change: transform; }
+        .roleta-item { height: 74px; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0 1rem; color: var(--primary); font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 700; }
+        .roleta-item:nth-child(odd) { background: rgba(44,95,45,0.04); }
+        .roleta-item-nome { text-align: left; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .roleta-item-cota { color: var(--accent); font-family: 'Playfair Display', serif; font-size: 1.25rem; }
+        .roleta-final { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; text-align: center; color: var(--primary); width: 100%; }
+        .roleta-final-label { font-size: 0.92rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-light); font-family: 'DM Sans', sans-serif; font-weight: 700; }
+        .roleta-final-nome { font-size: clamp(1.6rem, 4vw, 2.4rem); line-height: 1.1; }
+        .roleta-final-cota { font-size: 1.15rem; color: var(--accent); font-family: 'DM Sans', sans-serif; font-weight: 700; }
         .sorteio-status { color: rgba(255,255,255,0.88); font-size: 0.92rem; margin-top: -0.8rem; min-height: 1.2rem; }
         .sorteio-progress { width: 100%; max-width: 420px; margin: 0.8rem auto 0; height: 7px; border-radius: 999px; background: rgba(255,255,255,0.2); overflow: hidden; }
         .sorteio-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #f0ca57, #d4af37); transition: width 0.15s ease; }
@@ -342,7 +356,17 @@
         <div class="sorteio-section" id="sorteio-resultado" style="display:none">
             <div class="sorteador">
                 <h2 style="color:white;margin-bottom:1rem;font-family:'Playfair Display',serif">🎉 Vencedor!</h2>
-                <div class="vencedor-display" id="vencedor-nome"></div>
+                <div class="vencedor-display" id="vencedor-nome">
+                    <div class="roleta-shell" id="roleta-shell">
+                        <div class="roleta-track" id="roleta-track"></div>
+                        <div class="roleta-center-marker"></div>
+                    </div>
+                    <div class="roleta-final" id="roleta-final">
+                        <div class="roleta-final-label">Aguardando sorteio</div>
+                        <div class="roleta-final-nome">Selecione uma rifa</div>
+                        <div class="roleta-final-cota">e clique em realizar sorteio</div>
+                    </div>
+                </div>
                 <div class="sorteio-status" id="sorteio-status-text"></div>
                 <div class="sorteio-progress"><div class="sorteio-progress-fill" id="sorteio-progress-fill"></div></div>
                 <div class="confetti-layer" id="sorteio-confetti"></div>
@@ -860,6 +884,74 @@
             .replace(/&/g, '&amp;')
             .replace(/"/g, '&quot;')
             .replace(/</g, '&lt;');
+    }
+
+    const ROLETA_ITEM_HEIGHT = 74;
+    let roletaAnimationFrameId = null;
+
+    function montarHtmlResultadoFinal(nome, numeroCota) {
+        return `
+            <div class="roleta-final-label">Vencedor sorteado</div>
+            <div class="roleta-final-nome">🏆 ${escapeHtml(nome)}</div>
+            <div class="roleta-final-cota">Cota #${escapeHtml(numeroCota)}</div>
+        `;
+    }
+
+    function montarItensRoleta(candidatos, repeticoes = 10) {
+        const itens = [];
+        const seguros = candidatos.length ? candidatos : [[0, 'Sem participantes', 0]];
+        for (let i = 0; i < repeticoes; i++) {
+            itens.push(...seguros);
+        }
+        return itens.map(([, nome, numeroCota]) => `
+            <div class="roleta-item">
+                <div class="roleta-item-nome">${escapeHtml(nome)}</div>
+                <div class="roleta-item-cota">#${escapeHtml(numeroCota)}</div>
+            </div>
+        `).join('');
+    }
+
+    function iniciarAnimacaoRoleta(candidatos, duracaoMs, progressFill, statusText) {
+        const shell = document.getElementById('roleta-shell');
+        const track = document.getElementById('roleta-track');
+        const finalBox = document.getElementById('roleta-final');
+        if (!shell || !track || !finalBox) return;
+
+        cancelAnimationFrame(roletaAnimationFrameId);
+        track.innerHTML = montarItensRoleta(candidatos);
+        shell.style.display = 'block';
+        finalBox.style.display = 'none';
+        statusText.textContent = `🎰 Roleta girando com ${candidatos.length} participante(s)...`;
+
+        const cicloAltura = Math.max(candidatos.length, 1) * ROLETA_ITEM_HEIGHT;
+        const velocidadePxPorSegundo = 720;
+        const inicio = performance.now();
+
+        const animar = (agora) => {
+            const decorrido = agora - inicio;
+            const deslocamento = ((decorrido / 1000) * velocidadePxPorSegundo) % cicloAltura;
+            track.style.transform = `translateY(${-deslocamento}px)`;
+            if (progressFill) {
+                const pct = Math.min(99, Math.round((decorrido / duracaoMs) * 100));
+                progressFill.style.width = `${pct}%`;
+            }
+            if (decorrido < duracaoMs) {
+                roletaAnimationFrameId = requestAnimationFrame(animar);
+            }
+        };
+
+        roletaAnimationFrameId = requestAnimationFrame(animar);
+    }
+
+    function mostrarResultadoRoleta(nome, numeroCota, statusText) {
+        const shell = document.getElementById('roleta-shell');
+        const finalBox = document.getElementById('roleta-final');
+        if (shell) shell.style.display = 'none';
+        if (finalBox) {
+            finalBox.style.display = 'flex';
+            finalBox.innerHTML = montarHtmlResultadoFinal(nome, numeroCota);
+        }
+        if (statusText) statusText.textContent = '🎉 Temos um vencedor!';
     }
 
     function imgSrcParaRifa(src) {
@@ -1794,34 +1886,15 @@
                 return;
             }
 
-            // Animação estilo "jitter": ~10s com desaceleração gradual e reveal com boom.
-            statusText.textContent = `🎰 Sorteando entre ${rows.length} participante(s)...`;
+            // Roleta continua: velocidade constante, sem desaceleracao.
             sorteadorBox.classList.add('sorting');
             display.classList.add('sorteando');
             display.classList.remove('winner-boom', 'reveal', 'cycle', 'suspense');
-            display.classList.add('flashing-text');
             const duration = 10000;
-            const startedAt = Date.now();
-            while ((Date.now() - startedAt) < duration) {
-                const elapsed = Date.now() - startedAt;
-                const progress = elapsed / duration;
-                const candidato = rows[Math.floor(Math.random() * rows.length)];
-                const [, nomeCandidato, numeroCandidato] = candidato;
-                display.textContent = `🎟️ ${nomeCandidato} — Cota #${numeroCandidato}`;
-                statusText.textContent = progress < 0.35
-                    ? '🎲 Embaralhando nomes...'
-                    : progress < 0.7
-                        ? '⏳ Aumentando o suspense...'
-                        : '😱 Quase revelando o vencedor...';
-                if (progressFill) {
-                    const pct = Math.min(96, Math.round(progress * 100));
-                    progressFill.style.width = `${pct}%`;
-                }
-                const intervalSpeed = Math.floor(32 + progress * progress * 140);
-                await new Promise(resolve => setTimeout(resolve, intervalSpeed));
-            }
+            iniciarAnimacaoRoleta(rows, duration, progressFill, statusText);
+            await new Promise(resolve => setTimeout(resolve, duration));
+            cancelAnimationFrame(roletaAnimationFrameId);
             if (progressFill) progressFill.style.width = '99%';
-            display.classList.remove('flashing-text');
 
             const vencedor = rows[Math.floor(Math.random() * rows.length)];
             const [, nomeVencedor, numeroCota] = vencedor;
@@ -1853,11 +1926,10 @@
             sorteadorBox.classList.remove('sorting');
             sorteadorBox.classList.add('jackpot');
             display.classList.remove('sorteando');
-            display.textContent = `🏆 ${nomeVencedor} — Cota #${numeroCota}`;
             display.classList.remove('reveal', 'winner-boom');
+            mostrarResultadoRoleta(nomeVencedor, numeroCota, statusText);
             void display.offsetWidth;
             display.classList.add('winner-boom');
-            statusText.textContent = '🎉 Temos um vencedor!';
             setTimeout(() => {
                 display.classList.remove('winner-boom');
                 void display.offsetWidth;
@@ -1882,6 +1954,7 @@
             setTimeout(carregarRifasSortear, 2500);
 
         } catch (err) {
+            cancelAnimationFrame(roletaAnimationFrameId);
             sorteadorBox.classList.remove('sorting');
             sorteadorBox.classList.remove('jackpot');
             display.classList.remove('sorteando');
