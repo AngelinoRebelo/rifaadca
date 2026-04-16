@@ -594,6 +594,10 @@
             const btnAndamento = document.getElementById('btn-nav-andamento');
             showTab('andamento', btnAndamento);
         }
+        const tabResultadosAtiva = document.getElementById('tab-resultados').classList.contains('active');
+        if (tabResultadosAtiva) {
+            carregarResultados();
+        }
     }
 
     function normalizeAuthName(nome) {
@@ -2006,11 +2010,13 @@
                         <div class="resultado-title">${nome}</div>
                         <div class="resultado-header-actions">
                             <div class="resultado-data">${new Date(dataResultado).toLocaleDateString('pt-BR')}</div>
-                            <button
-                                type="button"
-                                class="btn btn-danger"
-                                onclick="event.stopPropagation(); excluirResultadoComSenha(${resultadoId}, '${escapeForJsString(nome)}')"
-                            >Excluir resultado</button>
+                            ${isLoggedIn() ? `
+                                <button
+                                    type="button"
+                                    class="btn btn-danger"
+                                    onclick="event.stopPropagation(); excluirResultadoComSenha(${resultadoId}, '${escapeForJsString(nome)}')"
+                                >Excluir resultado</button>
+                            ` : ''}
                         </div>
                     </div>
                     ${descricao ? `<p style="color:var(--text-light);margin-bottom:1rem">${descricao}</p>` : ''}
